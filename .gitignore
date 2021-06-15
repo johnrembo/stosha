@@ -1,0 +1,6 @@
+cache/
+log/
+out/
+target/
+.idea/
+*.log
