@@ -3,11 +3,11 @@ package ru.rembo.bot.telegram.poker;
 import java.util.EnumSet;
 
 public enum Action {
-    FOLD,
     CHECK,
     CALL,
     BET,
-    RAISE;
+    RAISE,
+    ALL_IN;
 
     public static EnumSet<Action> continuers() {
         return EnumSet.of(BET, RAISE);

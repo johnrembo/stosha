@@ -2,10 +2,28 @@ package ru.rembo.bot.telegram.poker;
 
 import java.util.*;
 
-public class Deck {
-    public LinkedHashSet<Card> cards = new LinkedHashSet<>();
-    private boolean locked = false;
-    private boolean shuffled = false;
+public class Deck extends AbstractActor<DeckState> {
+    private LinkedHashSet<Card> cards = new LinkedHashSet<>();
+    private final Collection<Card> discarded = new HashSet<>();
+    private Collection<Card> disposal;
+    private Card card;
+
+    public static class DeckTransition extends AbstractTransition<DeckState> {
+        DeckTransition(DeckState before, DeckState after) {
+            super(before, after);
+        }
+    }
+
+    public static class DeckActionMap extends AbstractActionMap<DeckState> {
+        DeckActionMap(ActorBehaviour<DeckState> actorBehaviour) {
+            super(actorBehaviour);
+        }
+
+        @Override
+        public void init(Behaviour<DeckState> behaviour) {
+            // static behaviour
+        }
+    }
 
     public Deck() {
         for (Suit suit : Suit.values()) {
@@ -16,48 +34,57 @@ public class Deck {
                 }
             }
         }
-    }
-
-    public int cardCount() {
-        return cards.size();
-    }
-
-    public boolean isLocked() {
-        return locked;
-    }
-
-    public void lock() {
-        locked = true;
-    }
-
-    public void unlock() {
-        locked = false;
-    }
-
-    public void shuffle() {
-        if (!locked) {
-            List<Card> deck = new ArrayList<>(cards);
-            Collections.shuffle(deck);
-            cards = new LinkedHashSet<>(deck);
-            shuffled = true;
-        } else {
-            throw new RuleViolationException("Deck is in game");
-        }
+        initState(DeckState.NEW);
+        DeckActionMap actionMap = new DeckActionMap(this);
+        actionMap.put(new DeckTransition(DeckState.NEW, DeckState.SHUFFLED), this::shuffle);
+        actionMap.put(new DeckTransition(DeckState.FULL, DeckState.SHUFFLED), this::shuffle);
+        actionMap.put(new DeckTransition(DeckState.SHUFFLED, DeckState.PULL_CARD), this::pullCard);
+        actionMap.put(new DeckTransition(DeckState.PLAYED, DeckState.PULL_CARD), this::pullCard);
+        actionMap.put(new DeckTransition(DeckState.PULL_CARD, DeckState.PULL_CARD), this::pullCard);
+        actionMap.put(new DeckTransition(DeckState.PULL_CARD, DeckState.PLAYED), this::accept);
+        actionMap.put(new DeckTransition(DeckState.PULL_CARD, DeckState.DISCARD), this::discard);
+        actionMap.put(new DeckTransition(DeckState.PLAYED, DeckState.DISCARD), this::discard);
+        actionMap.put(new DeckTransition(DeckState.DISCARD, DeckState.PLAYED), this::accept);
+        actionMap.put(new DeckTransition(DeckState.DISCARD, DeckState.PULL_CARD), this::pullCard);
+        actionMap.put(new DeckTransition(DeckState.PLAYED, DeckState.COLLECT), this::accept); // TODO add action
+        actionMap.put(new DeckTransition(DeckState.COLLECT, DeckState.FULL), this::restore);
+        initActions(actionMap);
     }
 
     @Override
     public String toString() {
-        return "Deck{" +
-                "cards=" + cards +
-                '}';
+        return cards.toString();
     }
 
-    public Card pullCard() {
-        if (cards.isEmpty()) throw new BadConditionException("Deck is empty");
-        if (!shuffled) throw new RuleViolationException("Deck is not shuffled");
-        Card card = cards.iterator().next();
-        cards.remove(card);
-        locked = true;
+    public Card getCard() {
         return card;
     }
+
+    public void actTo(DeckState newState, Collection<Card> cards) {
+        this.disposal = cards;
+        actTo(newState);
+    }
+
+    private void restore() {
+        cards.addAll(discarded);
+        discarded.clear();
+    }
+
+    private void shuffle() {
+        if (cards.size() != 52) throw new RuleViolationException("Deck is not full");
+        List<Card> deck = new ArrayList<>(cards);
+        Collections.shuffle(deck);
+        cards = new LinkedHashSet<>(deck);
+    }
+
+    private void pullCard() {
+        if (cards.isEmpty()) throw new BadConditionException("Deck is empty");
+        this.card = cards.iterator().next();
+        cards.remove(this.card);
+    }
+
+    private void discard() {
+        discarded.addAll(this.disposal);
+    }
+
 }

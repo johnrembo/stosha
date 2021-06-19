@@ -13,7 +13,7 @@ public class Card implements Comparable<Rank> {
 
     @Override
     public String toString() {
-        return "Card{" + rank + " of " + suit + '}';
+        return "{" + rank + " of " + suit + "}";
     }
 
     @Override

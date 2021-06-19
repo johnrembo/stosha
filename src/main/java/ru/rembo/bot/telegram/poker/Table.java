@@ -1,24 +1,29 @@
 package ru.rembo.bot.telegram.poker;
 
 import java.util.ArrayList;
+import java.util.stream.Stream;
 
 public class Table extends ArrayList<Player> {
 
-    private long chatID;
-    private int current = 0;
-    private int dealer = 0;
-    private int smallBlind = 0;
-    private int bigBlind = 0;
+    private final long chatID;
     private static final int MAX_PLAYERS = 8;
-    private Stack bank = new Stack();
+    private int dealer;
 
     public Table(long chatID) {
         super();
         this.chatID = chatID;
     }
 
-    public Player currentPlayer() {
-        return get(current);
+    public long getID() {
+        return chatID;
+    }
+
+    public Player getDealer() {
+        return get(this.dealer);
+    }
+
+    public void setDealer(Player dealer) {
+        this.dealer = indexOf(dealer);
     }
 
     public int getNextPlayerFrom(int index) {
@@ -26,7 +31,7 @@ public class Table extends ArrayList<Player> {
         int i = index;
         while (++i != index) {
             if (i == size()) i = 0;
-            if (get(i).isAway()) break;
+            if (get(i).isPlaying()) break;
         }
         return i;
     }
@@ -42,7 +47,7 @@ public class Table extends ArrayList<Player> {
         int i = index;
         while (++i != index) {
             if (i == size()) i = 0;
-            if (get(i).isActive()) break;
+            if (get(i).canAct()) break;
         }
         return i;
     }
@@ -53,67 +58,44 @@ public class Table extends ArrayList<Player> {
         return get(getNextActivePlayerFrom(currentIndex));
     }
 
-    public void setCurrentPlayer(int index) {
-        if ((index < 0) || (index >= size())) throw new BadConditionException("Bad player index: " + index);
-        current = index;
-    }
-    public void setCurrentPlayer(Player player) {
-        if (indexOf(player) == -1) throw new BadConditionException("No such player on table: " + player.getName());
-        setCurrentPlayer(indexOf(player));
-    }
-
-    public void switchToNextActivePlayer() {
-        setCurrentPlayer(getNextActivePlayerFrom(currentPlayer()));
-    }
-
-    public int playerCount() {
-        return size();
-    }
-
     public long activePlayerCount() {
-        return stream().filter(Player::isActive).count();
+        return stream().filter(Player::canAct).count();
     }
 
     public void addPlayer(Player player) {
-        if (size() == MAX_PLAYERS) {
+        if (size() == MAX_PLAYERS)
             throw new BadConditionException("Maximum number of players (" + MAX_PLAYERS + ") reached");
-        }
-        if (this.contains(player)) {
-            throw new BadConditionException(player.getName() + " is already on table " + chatID);
-        }
-        this.add(player);
-        System.out.println(player.getName() + " sits at table " + chatID);
+        if (this.contains(player))
+            throw new RuleViolationException(player.getName() + " is already on table " + chatID);
+        add(player);
+        System.out.println(player.getName() + " joins table " + chatID);
     }
 
-    public void setDealer(Deck deck, int index) {
-        dealer = index;
-        System.out.println(getDealer().getName() + " is dealer");
-        get(index).takeDeck(deck);
-        smallBlind = getNextActivePlayerFrom(index);
-        System.out.println(getSmallBlind().getName() + " is on small blind");
-        bigBlind = getNextActivePlayerFrom(smallBlind);
-        System.out.println(getBigBlind().getName() + " is on big blind");
-        current = smallBlind;
-    }
-
-    public void setDealer(Dealer dealer) {
-        setDealer(dealer.deck, indexOf(dealer));
-    }
-
-    public void setDealer(Deck deck, Player player) {
-        setDealer(deck, indexOf(player));
-    }
-
-    public Player getDealer() {
-        return get(dealer);
+    public Player getPlayerByState(PlayerState state) {
+//        Stream<Player> playerStream = stream().filter(player -> player.getState().equals(state));
+        if (stream().filter(player -> player.getState().equals(state)).count() > 1) throw new BadConditionException("Player state " + state + " is not unique");
+        return stream().filter(player -> player.getState().equals(state)).findFirst().orElse(null);
     }
 
     public Player getSmallBlind() {
-        return get(smallBlind);
+        return getPlayerByState(PlayerState.SMALL_BLIND);
     }
 
     public Player getBigBlind() {
-        return get(bigBlind);
+        return getPlayerByState(PlayerState.BIG_BLIND);
     }
 
+    public Player getBettingPlayer() {
+        return getPlayerByState(PlayerState.BETTING);
+    }
+
+    public Player getPlayerInTurn() {
+        Stream<Player> playerStream = stream().filter(player -> PlayerState.inTurn().contains(player.getState()));
+        if (playerStream.count() > 0)  throw new BadConditionException("More than one acting player");
+        return playerStream.findFirst().orElse(null);
+    }
+
+    public boolean allPlayersAreOpen() {
+        return stream().filter(player -> (PlayerState.openOrFolded().contains(player.getState()))).count() == size();
+    }
 }
