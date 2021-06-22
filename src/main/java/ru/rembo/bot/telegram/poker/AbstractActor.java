@@ -10,6 +10,7 @@ public abstract class AbstractActor<T extends Enum<T>> implements ActorBehaviour
     }
 
     public void initState(T state) {
+        if (state == null) throw new NullPointerException("Actor state must not be 'null'");
         if (this.state == null) this.state = state;
     }
 
@@ -27,9 +28,7 @@ public abstract class AbstractActor<T extends Enum<T>> implements ActorBehaviour
     }
 
     public void behave(T before, T after) {
-        AbstractTransition<T> transition = new AbstractTransition<T>(before, after) {
-
-        };
+        AbstractTransition<T> transition = new AbstractTransition<T>(before, after) {};
         if (getActionMap().containsKey(transition)) {
             getActionMap().run(transition);
         } else {

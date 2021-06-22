@@ -1,7 +1,7 @@
 package ru.rembo.bot.telegram.poker;
 
 import java.util.ArrayList;
-import java.util.stream.Stream;
+import java.util.function.Predicate;
 
 public class Table extends ArrayList<Player> {
 
@@ -26,36 +26,37 @@ public class Table extends ArrayList<Player> {
         this.dealer = indexOf(dealer);
     }
 
-    public int getNextPlayerFrom(int index) {
+    public int getNextPlayerFrom(int index, Predicate<Player> predicate) {
         if ((index < 0) || (index >= size())) throw new BadConditionException("Bad player index: " + index);
-        int i = index;
-        while (++i != index) {
+        int i = (index == size() - 1) ? 0 : index + 1;
+        while (i != index) {
+            if (predicate.test(get(i))) break;
+            i++;
             if (i == size()) i = 0;
-            if (get(i).isPlaying()) break;
         }
         return i;
     }
 
-    public Player getNextPlayerFrom(Player player) {
+    public Player getNextPlayingFrom(Player player) {
         int currentIndex = this.indexOf(player);
         if (currentIndex == -1) throw new BadConditionException("No such player on table: " + player.getName());
-        return get(getNextPlayerFrom(currentIndex));
+        return get(getNextPlayerFrom(currentIndex, Player::isPlaying));
     }
 
-    public int getNextActivePlayerFrom(int index) {
-        if ((index < 0) || (index >= size())) throw new BadConditionException("Bad player index: " + index);
-        int i = index;
-        while (++i != index) {
-            if (i == size()) i = 0;
-            if (get(i).canAct()) break;
-        }
-        return i;
+    public Player getNextPlayerFrom(Player player, Predicate<Player> predicate) {
+        int currentIndex = this.indexOf(player);
+        if (currentIndex == -1) throw new BadConditionException("No such player on table: " + player.getName());
+        return get(getNextPlayerFrom(currentIndex, predicate));
     }
 
     public Player getNextActivePlayerFrom(Player player) {
         int currentIndex = this.indexOf(player);
         if (currentIndex == -1) throw new BadConditionException("No such player on table: " + player.getName());
-        return get(getNextActivePlayerFrom(currentIndex));
+        return get(getNextPlayerFrom(currentIndex, Player::canAct));
+    }
+
+    public long countByState(PlayerState state) {
+        return stream().filter(player -> player.getState().equals(state)).count();
     }
 
     public long activePlayerCount() {
@@ -71,31 +72,13 @@ public class Table extends ArrayList<Player> {
         System.out.println(player.getName() + " joins table " + chatID);
     }
 
-    public Player getPlayerByState(PlayerState state) {
-//        Stream<Player> playerStream = stream().filter(player -> player.getState().equals(state));
-        if (stream().filter(player -> player.getState().equals(state)).count() > 1) throw new BadConditionException("Player state " + state + " is not unique");
-        return stream().filter(player -> player.getState().equals(state)).findFirst().orElse(null);
+    public long challengerCount() {
+        return stream().filter(Player::inChallenge).count();
     }
 
-    public Player getSmallBlind() {
-        return getPlayerByState(PlayerState.SMALL_BLIND);
-    }
-
-    public Player getBigBlind() {
-        return getPlayerByState(PlayerState.BIG_BLIND);
-    }
-
-    public Player getBettingPlayer() {
-        return getPlayerByState(PlayerState.BETTING);
-    }
-
-    public Player getPlayerInTurn() {
-        Stream<Player> playerStream = stream().filter(player -> PlayerState.inTurn().contains(player.getState()));
-        if (playerStream.count() > 0)  throw new BadConditionException("More than one acting player");
-        return playerStream.findFirst().orElse(null);
-    }
-
-    public boolean allPlayersAreOpen() {
-        return stream().filter(player -> (PlayerState.openOrFolded().contains(player.getState()))).count() == size();
+    public Player getNextChallengingFrom(Player player) {
+        int currentIndex = this.indexOf(player);
+        if (currentIndex == -1) throw new BadConditionException("No such player on table: " + player.getName());
+        return get(getNextPlayerFrom(currentIndex, Player::inChallenge));
     }
 }

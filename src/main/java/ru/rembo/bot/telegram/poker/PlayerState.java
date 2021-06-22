@@ -14,19 +14,22 @@ public enum PlayerState {
     IN_LINE,
     IN_TURN,
     BETTING,
+    ALL_IN,
+    FOLDED,
     SHOW_FLOP,
     SHOW_TURN,
     SHOW_RIVER,
     SHOWDOWN,
+    OPTIONAL_SHOWDOWN,
     RANKED,
-    DISCARDED,
+    RANKED_HIDDEN,
     COLLECT_CARDS,
-    ALL_IN,
-    FOLDED,
+    RETURN_DECK,
+    SHOW_FROM_TOP,
     AWAY;
 
     public static EnumSet<PlayerState> playing() {
-        return EnumSet.of(IN_LINE, SMALL_BLIND, BIG_BLIND, DEALER, ALL_IN);
+        return EnumSet.of(IN_LINE, SMALL_BLIND, BIG_BLIND, DEALER, ALL_IN, FOLDED, RANKED);
     }
 
     public static EnumSet<PlayerState> awayOrOutOfChips() {
@@ -37,11 +40,7 @@ public enum PlayerState {
         return EnumSet.of(IN_LINE, SMALL_BLIND, BIG_BLIND, DEALER);
     }
 
-    public static EnumSet<PlayerState> inTurn() {
-        return EnumSet.of(IN_TURN, SMALL_BLIND, BIG_BLIND);
-    }
-
-    public static EnumSet<PlayerState> openOrFolded() {
-        return EnumSet.of(RANKED, FOLDED, DISCARDED);
+    public static EnumSet<PlayerState> challenging() {
+        return EnumSet.of(IN_LINE, SMALL_BLIND, BIG_BLIND, DEALER, ALL_IN);
     }
 }

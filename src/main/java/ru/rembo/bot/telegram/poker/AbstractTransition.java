@@ -1,7 +1,5 @@
 package ru.rembo.bot.telegram.poker;
 
-import javax.jws.Oneway;
-
 public abstract class AbstractTransition<T extends Enum<T>> implements Transition<T> {
 
     private final T before;

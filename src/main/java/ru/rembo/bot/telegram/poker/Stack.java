@@ -27,7 +27,7 @@ public class Stack extends ArrayList<Chip> {
     }
 
     public Stack withdraw(Stack chips) {
-        chips.forEach(chip -> remove(indexOf(chip)));
+        chips.forEach(chip -> { if (indexOf(chip) != -1) remove(indexOf(chip)); });
         return chips;
     }
 
@@ -71,11 +71,4 @@ public class Stack extends ArrayList<Chip> {
         return part;
     }
 
-    public Stack getPartOrAll(int sum) {
-        try {
-            return getPart(sum);
-        } catch (BadConditionException e) {
-            return new Stack(this);
-        }
-    }
 }

@@ -13,7 +13,9 @@ public enum RoundState {
     WAIT_RIVER,
     RIVER,
     SHOWDOWN,
+    OPTIONAL_SHOWDOWN,
     RANK,
+    HIDDEN_RANK,
     DISCARD,
     CHOP_THE_POT,
     OVER

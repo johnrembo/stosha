@@ -1,6 +1,7 @@
 package ru.rembo.bot.telegram.poker;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 
@@ -12,7 +13,9 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
     private final LinkedHashSet<Card> flop = new LinkedHashSet<>();
     private Card turn;
     private Card river;
-    private Collection<Card> cards;
+    protected Collection<Card> cards;
+    private final HashMap<Player, Hand> dealtCards = new HashMap<>();
+    private Deck playedDeck;
 
     public Dealer(String name) {
         this.name = name;
@@ -20,6 +23,10 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
 
     public String getName() {
         return name;
+    }
+
+    public HashMap<Player, Hand> getDealtCards() {
+        return dealtCards;
     }
 
     public void actTo(T state, Collection<Card> cards) {
@@ -53,8 +60,11 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
         return river;
     }
 
+    public Deck getPlayedDeck() {
+        return playedDeck;
+    }
     protected void takeDeck() {
-        System.out.println(getName() + " takes deck: " + deck);
+        System.out.println(getName() + " takes deck (" + deck.size() + "): " + deck);
     }
 
     protected void shuffleDeck() {
@@ -107,13 +117,13 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
         System.out.println(getName() + " deals cards");
         table.stream().filter(Player::canPlay).forEach(player -> {
             deck.actTo(DeckState.PULL_CARD);
-            player.takeCard(deck.getCard());
+            dealtCards.put(player, new Hand());
+            dealtCards.get(player).add(deck.getCard());
             deck.actTo(DeckState.PLAYED);
         });
         table.stream().filter(Player::canPlay).forEach(player -> {
             deck.actTo(DeckState.PULL_CARD);
-            player.takeCard(deck.getCard());
-            // TODO hand card through game
+            dealtCards.get(player).add(deck.getCard());
             deck.actTo(DeckState.PLAYED);
         });
     }
@@ -122,14 +132,18 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
         deck.actTo(DeckState.DISCARD, getCards());
     }
 
-    // TODO collect cards
-
-    public Deck returnDeck() {
-        if (deck == null) throw new BadConditionException("Player has no deck");
-        Deck result = deck;
+    protected void returnDeck() {
+        deck.actTo(DeckState.FULL);
+        playedDeck = new Deck(deck);
         deck = null;
-        System.out.println(getName() + " gives deck");
-        return result;
     }
 
+    protected void showCardFromTop() {
+        Collection<Card> burn = new HashSet<>();
+        deck.actTo(DeckState.PULL_CARD);
+        System.out.println(name + " showing card from top " + deck.getCard());
+        burn.add(deck.getCard());
+        deck.actTo(DeckState.DISCARD, burn);
+        deck.actTo(DeckState.FULL);
+    }
 }

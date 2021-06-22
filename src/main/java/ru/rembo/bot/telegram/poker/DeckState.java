@@ -6,6 +6,5 @@ public enum DeckState {
     PULL_CARD,
     DISCARD,
     PLAYED,
-    COLLECT,
     FULL
 }

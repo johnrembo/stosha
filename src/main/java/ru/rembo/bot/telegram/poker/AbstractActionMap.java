@@ -5,6 +5,8 @@ import java.util.Map;
 
 public abstract class AbstractActionMap<T extends Enum<T>> extends HashMap<Transition<T>, Runnable> implements ActionMap<T> {
 
+    // TODO key uniqueness check
+
     AbstractActionMap(Behaviour<T> behaviour) {
         init(behaviour);
     }

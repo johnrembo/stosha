@@ -16,10 +16,6 @@ public class Casino extends Stack {
         return smallestChip;
     }
 
-    public int getTotal() {
-        return total;
-    }
-
     public Stack change(int sum) {
         Stack chips = new Stack();
         int remain = sum;
@@ -41,7 +37,7 @@ public class Casino extends Stack {
         if (remain > 0) {
             throw new BadConditionException("Cannot change " + remain + " with " + smallestChip);
         }
-        total += sum;
+        total = total + sum;
         System.out.println("Bank changes chips: " + chips + " for " + sum);
         return chips;
     }
@@ -55,7 +51,7 @@ public class Casino extends Stack {
         for (Chip chip : chips) {
             sum += chip.getValue();
         }
-        total -= sum;
+        total = total - sum;
         System.out.println("Bank cashes out " + sum + " for chips: " + chips);
         return sum;
     }

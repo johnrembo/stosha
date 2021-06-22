@@ -4,19 +4,18 @@ import java.util.*;
 
 public class Round  extends AbstractActor<RoundState> {
 
-    private Game game;
+    private final Game game;
     private final Stack pot = new Stack();
     private final HashMap<Player, Stack> roundBets = new HashMap<>();
     private final LinkedHashMap<Player, Stack> sidePots = new LinkedHashMap<>();
     private int callAmount = 0;
     private int raiseAmount = 0;
-    private final HashSet<Player> foldedPlayers = new HashSet<>();
     private final HashSet<Card> sharedCards = new HashSet<>();
-    private final HashSet<Card> burnedCards = new HashSet<>();
     private final HashMap<Player, Combo> ranks = new HashMap<>();
     private Player lead;
     private Player currentPlayer;
     private Action lastAction;
+    private Combo combo;
 
     public static class RoundTransition extends AbstractTransition<RoundState> {
         RoundTransition(RoundState before, RoundState after) {
@@ -52,6 +51,14 @@ public class Round  extends AbstractActor<RoundState> {
         actionMap.put(new RoundTransition(RoundState.FLOP, RoundState.TAKE_BET), this::takeBet);
         actionMap.put(new RoundTransition(RoundState.TURN, RoundState.TAKE_BET), this::takeBet);
         actionMap.put(new RoundTransition(RoundState.RIVER, RoundState.TAKE_BET), this::takeBet);
+        actionMap.put(new RoundTransition(RoundState.PREFLOP, RoundState.SHOWDOWN), this::accept);
+        actionMap.put(new RoundTransition(RoundState.FLOP, RoundState.SHOWDOWN), this::accept);
+        actionMap.put(new RoundTransition(RoundState.TURN, RoundState.SHOWDOWN), this::accept);
+        actionMap.put(new RoundTransition(RoundState.RIVER, RoundState.SHOWDOWN), this::accept);
+        actionMap.put(new RoundTransition(RoundState.PREFLOP, RoundState.OPTIONAL_SHOWDOWN), this::accept);
+        actionMap.put(new RoundTransition(RoundState.FLOP, RoundState.OPTIONAL_SHOWDOWN), this::accept);
+        actionMap.put(new RoundTransition(RoundState.TURN, RoundState.OPTIONAL_SHOWDOWN), this::accept);
+        actionMap.put(new RoundTransition(RoundState.RIVER, RoundState.OPTIONAL_SHOWDOWN), this::accept);
         actionMap.put(new RoundTransition(RoundState.TAKE_BET, RoundState.WAIT_FLOP), this::nextStage);
         actionMap.put(new RoundTransition(RoundState.TAKE_BET, RoundState.WAIT_TURN), this::nextStage);
         actionMap.put(new RoundTransition(RoundState.TAKE_BET, RoundState.WAIT_RIVER), this::nextStage);
@@ -60,9 +67,17 @@ public class Round  extends AbstractActor<RoundState> {
         actionMap.put(new RoundTransition(RoundState.WAIT_TURN, RoundState.TURN), this::showSharedCards);
         actionMap.put(new RoundTransition(RoundState.WAIT_RIVER, RoundState.RIVER), this::showSharedCards);
         actionMap.put(new RoundTransition(RoundState.SHOWDOWN, RoundState.RANK), this::rank);
+        actionMap.put(new RoundTransition(RoundState.OPTIONAL_SHOWDOWN, RoundState.RANK), this::rank);
+        actionMap.put(new RoundTransition(RoundState.OPTIONAL_SHOWDOWN, RoundState.HIDDEN_RANK), this::hiddenRank);
         actionMap.put(new RoundTransition(RoundState.RANK, RoundState.SHOWDOWN), this::accept);
         actionMap.put(new RoundTransition(RoundState.SHOWDOWN, RoundState.CHOP_THE_POT), this::chopThePot);
+        actionMap.put(new RoundTransition(RoundState.RANK, RoundState.CHOP_THE_POT), this::chopThePot);
+        actionMap.put(new RoundTransition(RoundState.HIDDEN_RANK, RoundState.CHOP_THE_POT), this::chopThePot);
         initActions(actionMap);
+    }
+
+    public Collection<Card> getSharedCards() {
+        return sharedCards;
     }
 
     public Action getLastAction() {
@@ -108,8 +123,8 @@ public class Round  extends AbstractActor<RoundState> {
         return sum;
     }
 
-    public Stack getPlayerStack(Player player) {
-        return roundBets.get(player);
+    public int getPlayerStackSum(Player player) {
+        return (roundBets.containsKey(player)) ? roundBets.get(player).getSum() : 0;
     }
 
     private Stack withdrawWithChange(Stack pot, int sum) {
@@ -148,6 +163,8 @@ public class Round  extends AbstractActor<RoundState> {
 
     private void chopThePot() {
         System.out.println("Round ending");
+        roundBets.forEach((player, stack) -> pot.addAll(stack));
+        roundBets.clear();
         HashMap<Player, Combo> challengers = new HashMap<>();
         for (Map.Entry<Player, Combo> entry : ranks.entrySet()) {
             if (entry.getValue().rank > 0) challengers.put(entry.getKey(), entry.getValue());
@@ -165,6 +182,35 @@ public class Round  extends AbstractActor<RoundState> {
                 }
             }
 
+            if (winners.size() > 1) {
+                HashSet<Rank> allKickers = new HashSet<>();
+                winners.forEach((player, combo) -> combo.kickers.forEach(kicker -> allKickers.add(kicker.rank)));
+                List<Rank> kickers = new ArrayList<>(allKickers);
+                kickers.sort(new CompareHiAce().reversed());
+                for (Rank rank : kickers) {
+                    HashSet<Player> kicked = new HashSet<>();
+                    winners.forEach(((player, combo) -> {
+                        Card found = null;
+                        for (Card kicker : combo.kickers) {
+                            if (kicker.compareTo(rank) == 0) {
+                                found = kicker;
+                                break;
+                            }
+                        }
+                        if (found != null) {
+                            winners.get(player).setKicker(found);
+                            combo.kickers.remove(found);
+                        } else {
+                            System.out.println(player.getName() + " kicked by " + rank);
+                            kicked.add(player);
+                        }
+                    }));
+                    kicked.forEach(winners::remove);
+                    if (winners.size() == 0) throw new BadConditionException("Bad kicker calculation");
+                    if (winners.size() == 1) break;
+                }
+            }
+
             if (winners.isEmpty()) break;
 
             HashSet<Player> sidePotWinners = new HashSet<>(winners.keySet());
@@ -176,7 +222,7 @@ public class Round  extends AbstractActor<RoundState> {
                         Player player = it.next();
                         deadMoney.addAll(splitPot(sidePots.get(player), winners));
                         it.remove();
-                        if (player == winner) {
+                        if ((player == winner) && sidePots.containsKey(winner)) {
                             challengers.remove(winner);
                             break;
                         }
@@ -198,19 +244,23 @@ public class Round  extends AbstractActor<RoundState> {
         System.out.println("Dead money in pot " + deadMoney);
     }
 
-    private void rank() {
+    private void hiddenRank() {
         HashSet<Card> fullHand = new HashSet<>();
         fullHand.addAll(sharedCards);
-        fullHand.addAll(currentPlayer.getHand());
-        Combo combo = HandRanking.calcCombo(fullHand);
+        fullHand.addAll(currentPlayer.getOpenHand());
+        combo = HandRanking.calcCombo(fullHand);
         ranks.put(currentPlayer, combo);
+    }
+
+    private void rank() {
+        hiddenRank();
         System.out.println(currentPlayer.getName() + " got " + combo.name + " " + combo.hand + " with high card " + combo.highCard);
         System.out.println(currentPlayer.getName() + " hand is ranked " + combo.rank);
     }
 
     private void nextTurn() {
         roundBets.get(currentPlayer).deposit(currentPlayer.giveLastBet());
-        if (!currentPlayer.hasChips()) {
+        if (currentPlayer.isEmpty()) {
             sidePots.put(currentPlayer, new Stack());
             System.out.println(currentPlayer.getName() + " is all in!");
         }
@@ -225,10 +275,10 @@ public class Round  extends AbstractActor<RoundState> {
             roundBets.put(currentPlayer, new Stack());
         }
         int betSum = roundBets.get(currentPlayer).getSum() + part.getSum();
-        if (currentPlayer.getStackSum() != part.getSum() /* add and rules allow low all ins*/) {
+        if (currentPlayer.getStackSum() != part.getSum() /* TODO add and rules allow low all ins*/) {
             if (betSum < callAmount) throw new RuleViolationException("Cannot take bet less than "
                     + (callAmount - roundBets.get(currentPlayer).getSum()));
-            if ((betSum > callAmount) && (betSum - callAmount < raiseAmount) /* add and rules restrict small raise*/)
+            if ((betSum > callAmount) && (betSum - callAmount < raiseAmount) /* TODO add and rules restrict small raise*/)
                 throw new RuleViolationException("Cannot raise bet by less than " + raiseAmount);
 
         }
@@ -251,7 +301,7 @@ public class Round  extends AbstractActor<RoundState> {
             throw new BadConditionException("Action not resolved");
         }
         System.out.println(currentPlayer.getName() + " last action was " + lastAction);
-        System.out.println("Pot size changed to " + getPotSum());
+        System.out.println("Pot size is " + getPotSum());
     }
 
     private void nextStage() {
@@ -263,7 +313,7 @@ public class Round  extends AbstractActor<RoundState> {
             }
         });
         roundBets.forEach((player, stack) -> pot.addAll(stack));
-        roundBets.forEach((player, stack) -> stack.clear());
+        roundBets.clear();
         raiseAmount = 0;
         callAmount = 0;
         lead = currentPlayer;

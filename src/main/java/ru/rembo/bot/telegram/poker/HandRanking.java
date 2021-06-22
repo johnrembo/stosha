@@ -159,9 +159,8 @@ public class HandRanking {
                     }
                 }
                 if (smallPairCombo != null) {
-                    ArrayList<Card> twoPairHand = new ArrayList<>(pairCombo.hand);
-                    twoPairHand.addAll(smallPairCombo.hand);
-                    combo = new Combo(Combination.TWO_PAIRS, pairCombo.highCard, twoPairHand);
+                    combo = new Combo(Combination.TWO_PAIRS, pairCombo.highCard, pairCombo.hand);
+                    combo.add(smallPairCombo);
                 }
             }
         }
@@ -171,7 +170,17 @@ public class HandRanking {
         }
 
         if (combo == null) {
-            combo = new Combo(Combination.HIGH_CARD, search.get(search.size() - 1), new ArrayList<>(hand));
+            ArrayList<Card> highCardHand = new ArrayList<>();
+            highCardHand.add(search.get(search.size() - 1));
+            combo = new Combo(Combination.HIGH_CARD, search.get(search.size() - 1), highCardHand);
+        }
+
+        List<Card> kickers = new ArrayList<>(hand);
+        combo.hand.forEach(kickers::remove);
+        kickers.sort(Comparator.comparingInt(Card::getHiAceRank).reversed());
+        for (Card kicker : kickers) {
+            if (combo.kickers.size() + combo.hand.size() >= 5) break;
+            combo.kickers.add(kicker);
         }
 
         return combo;
