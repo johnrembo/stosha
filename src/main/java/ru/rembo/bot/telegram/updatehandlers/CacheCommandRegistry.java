@@ -5,6 +5,7 @@ import org.telegram.telegrambots.extensions.bots.commandbot.commands.ICommandReg
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 import org.telegram.telegrambots.meta.bots.AbsSender;
+import ru.rembo.bot.telegram.statemachine.EventHandler;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -16,6 +17,7 @@ public final class CacheCommandRegistry implements ICommandRegistry {
     private final boolean allowCommandsWithUsername;
     private final Supplier<String> botUsernameSupplier;
     private BiConsumer<AbsSender, Message> defaultConsumer;
+    private final Map<String, EventHandler<String>> eventHandlerMap = new HashMap<>();
 
     public CacheCommandRegistry(boolean allowCommandsWithUsername, Supplier<String> botUsernameSupplier) {
         this.allowCommandsWithUsername = allowCommandsWithUsername;
@@ -31,6 +33,15 @@ public final class CacheCommandRegistry implements ICommandRegistry {
             return false;
         } else {
             this.commandRegistryMap.put(botCommand.getCommandIdentifier(), botCommand);
+            return true;
+        }
+    }
+
+    public final boolean register(EventHandler<String> eventHandler) {
+        if (this.eventHandlerMap.containsKey(eventHandler.getHandlerIdentifier())) {
+            return false;
+        } else {
+            this.eventHandlerMap.put(eventHandler.getHandlerIdentifier(), eventHandler);
             return true;
         }
     }
@@ -66,6 +77,10 @@ public final class CacheCommandRegistry implements ICommandRegistry {
 
     public final Collection<IBotCommand> getRegisteredCommands() {
         return this.commandRegistryMap.values();
+    }
+
+    public final Collection<EventHandler<String>> getRegisteredEventHandlers() {
+        return this.eventHandlerMap.values();
     }
 
     public final IBotCommand getRegisteredCommand(String commandIdentifier) {

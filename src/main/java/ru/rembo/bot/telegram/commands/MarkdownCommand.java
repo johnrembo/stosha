@@ -65,4 +65,9 @@ public class MarkdownCommand extends BotCommand implements IBotCommand, IManComm
                 "\t[inline URL](http://www.example.com/)\n" +
                 "For further details refer to https://core.telegram.org/bots/api#formatting-options";
     }
+
+    @Override
+    public String toString() {
+        return "/" + this.getCommand() + "\n" + this.getDescription();
+    }
 }

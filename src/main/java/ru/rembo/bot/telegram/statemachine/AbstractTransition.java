@@ -1,0 +1,29 @@
+package ru.rembo.bot.telegram.statemachine;
+
+import ru.rembo.bot.telegram.holdem.PlayerState;
+
+public abstract class AbstractTransition<T extends Enum<T>> implements Transition<T> {
+
+    private final T before;
+    private final T after;
+
+    public AbstractTransition(T before, T after) {
+        this.before = before;
+        this.after = after;
+    }
+
+    @Override
+    public T getBefore() {
+        return before;
+    }
+
+    @Override
+    public T getAfter() {
+        return after;
+    }
+
+    @Override
+    public boolean equals(Transition<T> transition) {
+        return transition.getBefore().equals(before) && transition.getAfter().equals(after);
+    }
+}

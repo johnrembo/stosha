@@ -9,6 +9,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import ru.rembo.bot.telegram.GlobalLogger;
 import ru.rembo.bot.telegram.GlobalProperties;
+import ru.rembo.bot.telegram.statemachine.EventHandler;
 
 import java.io.*;
 import java.time.Instant;
@@ -226,6 +227,10 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
         return this.commandRegistry.register(botCommand);
     }
 
+    public final boolean registerEventHandler(EventHandler<String> eventHandler) {
+        return this.commandRegistry.register(eventHandler);
+    }
+
     public final Map<IBotCommand, Boolean> registerAll(IBotCommand... botCommands) {
         return this.commandRegistry.registerAll(botCommands);
     }
@@ -249,6 +254,10 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
 
     public final IBotCommand getRegisteredCommand(String commandIdentifier) {
         return this.commandRegistry.getRegisteredCommand(commandIdentifier);
+    }
+
+    public final Collection<EventHandler<String>> getRegisteredEventHandlers() {
+        return this.commandRegistry.getRegisteredEventHandlers();
     }
 
     public abstract String getBotUsername();

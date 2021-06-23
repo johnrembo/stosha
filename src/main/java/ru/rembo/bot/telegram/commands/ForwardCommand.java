@@ -95,4 +95,8 @@ public class ForwardCommand extends BotCommand implements IBotCommand, IManComma
                 "E.g., /forward 518 -100000009";
     }
 
+    @Override
+    public String toString() {
+        return "/" + this.getCommand() + "\n" + this.getDescription();
+    }
 }

@@ -225,4 +225,9 @@ public class PostCommand extends BotCommand implements IBotCommand, IManCommand 
                 "Argument order is arbitary\n" +
                 "For further details refer to https://core.telegram.org/bots/api#formatting-options";
     }
+
+    @Override
+    public String toString() {
+        return "/" + this.getCommand() + "\n" + this.getDescription();
+    }
 }

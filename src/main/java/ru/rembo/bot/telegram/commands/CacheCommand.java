@@ -236,4 +236,9 @@ public class CacheCommand extends BotCommand implements IBotCommand, IManCommand
                 "\t /cache clear all\n" +
                 "\t /depth 30\n";
     }
+
+    @Override
+    public String toString() {
+        return "/" + this.getCommand() + "\n" + this.getDescription();
+    }
 }

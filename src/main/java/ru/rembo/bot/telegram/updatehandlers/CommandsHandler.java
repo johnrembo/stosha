@@ -3,16 +3,15 @@ package ru.rembo.bot.telegram.updatehandlers;
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.helpCommand.HelpCommand;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import ru.rembo.bot.telegram.GlobalLogger;
-import ru.rembo.bot.telegram.commands.CacheCommand;
-import ru.rembo.bot.telegram.commands.ForwardCommand;
-import ru.rembo.bot.telegram.commands.MarkdownCommand;
+import ru.rembo.bot.telegram.commands.*;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.rembo.bot.telegram.GlobalProperties;
-import ru.rembo.bot.telegram.commands.PostCommand;
+import ru.rembo.bot.telegram.statemachine.BadStateException;
+import ru.rembo.bot.telegram.statemachine.EventHandler;
 
-import java.util.HashMap;
+import java.util.Collection;
 
 /**
  * Telegram @pulse_day Java Bot
@@ -39,6 +38,9 @@ public class CommandsHandler extends CacheCommandBot {
         register(new PostCommand());
         register(new ForwardCommand());
         register(new CacheCommand());
+        HoldemCommand holdemCommand = new HoldemCommand();
+        register(holdemCommand);
+        registerEventHandler(holdemCommand);
         HelpCommand helpCommand = new HelpCommand();
         register(helpCommand);
 
@@ -71,6 +73,37 @@ public class CommandsHandler extends CacheCommandBot {
                     execute(echoMessage);
                 } catch (TelegramApiException e) {
                     GlobalLogger.warning(e.getLocalizedMessage(), e);
+                }
+            } else if (message.getChat().getType().equals("group")) {
+                Collection<EventHandler<String>> handlers = getRegisteredEventHandlers();
+                for (EventHandler<String> handler : handlers) {
+                    if (handler.handles(message.getText())) {
+                        String globalAnswerText;
+                        String privateAnswerText = null;
+                        try {
+                            handler.getAction(message.getText()).run();
+                            globalAnswerText = handler.getGlobalAnswer();
+                            privateAnswerText = handler.getPrivateAnswer();
+                        } catch (BadStateException e) {
+                            globalAnswerText = e.getMessage();
+                        }
+                        try {
+                            if (globalAnswerText != null) {
+                                SendMessage globalAnswer = new SendMessage();
+                                globalAnswer.setChatId(message.getChatId().toString());
+                                globalAnswer.setText(globalAnswerText);
+                                execute(globalAnswer);
+                            }
+                            if (privateAnswerText != null) {
+                                SendMessage privateAnswer = new SendMessage();
+                                privateAnswer.setChatId(message.getFrom().getId().toString());
+                                privateAnswer.setText(privateAnswerText);
+                                execute(privateAnswer);
+                            }
+                        } catch (TelegramApiException e) {
+                            GlobalLogger.warning(e.getLocalizedMessage(), e);
+                        }
+                    }
                 }
             }
         }
