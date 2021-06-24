@@ -12,6 +12,7 @@ import ru.rembo.bot.telegram.holdem.*;
 import ru.rembo.bot.telegram.statemachine.AbstractEventMap;
 import ru.rembo.bot.telegram.statemachine.EventHandler;
 
+import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,16 +28,18 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
     private Casino casino;
     private Deck deck;
     private Game game;
+    private final HashMap<Long, Player> players = new HashMap<>();
+    private Message message;
     private String privateAnswer;
     private String globalAnswer;
 
-    private final AbstractEventMap<HoldemEvent> eventMap = new AbstractEventMap<HoldemEvent>() {
+    private final AbstractEventMap<HoldemEvent, HoldemCommand> eventMap = new AbstractEventMap<HoldemEvent, HoldemCommand>() {
         @Override
-        public void initEventMap() {
+        public void initEventMap(HoldemCommand handler) {
+            put(HoldemEvent.NEW_PLAYER, handler::newPlayer);
             put(HoldemEvent.JOIN_PLAYER, game::join);
         }
     };
-
 
     public HoldemCommand() {
         super("holdem", "Control Texas Hold'em croupier mode");
@@ -53,6 +56,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                 ", " + message.getText() +
                 ", " + String.join(" ", strings));
         GlobalLogger.finer(message.toString());
+        this.message = message;
         String text = String.join(" ", strings);
         String answerText = null;
         String answerChatId = message.getChatId().toString();
@@ -68,7 +72,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
             this.casino = new Casino(5);
             this.deck = new Deck();
             this.game = new Game(this.casino, this.table);
-            eventMap.initEventMap();
+            eventMap.initEventMap(this);
             String chatMessage = this.game.getGlobalMessage();
             this.game.setBlinds(smallBlind, bigBlind);
             chatMessage = chatMessage + "\n" + this.game.getGlobalMessage();
@@ -124,10 +128,6 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
         return this.eventMap.containsKey(event);
     }
 
-    private HoldemEvent parse(String text) {
-        return text.contains("в игре") ? HoldemEvent.JOIN_PLAYER : null;
-    }
-
     @Override
     public String getPrivateAnswer() {
         return privateAnswer;
@@ -141,6 +141,16 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
     @Override
     public String getHandlerIdentifier() {
         return getCommandIdentifier();
+    }
+
+    private HoldemEvent parse(String text) {
+        return text.contains("в игре") ? HoldemEvent.JOIN_PLAYER : null;
+    }
+
+    private void newPlayer() {
+        if (!players.containsKey(message.getChatId())) {
+            players.put(message.getChatId(), new Player("name"));
+        }
     }
 
 
