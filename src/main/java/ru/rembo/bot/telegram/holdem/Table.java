@@ -1,28 +1,19 @@
 package ru.rembo.bot.telegram.holdem;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.function.Predicate;
 
 public class Table extends ArrayList<Player> {
 
-    private final long chatID;
     private static final int MAX_PLAYERS = 8;
-    private final String name;
+    private final HashMap<String, Integer> playersById = new HashMap<>();
     private int dealer;
 
-    public Table(long chatID, String name) {
+    public Table() {
         super();
-        this.chatID = chatID;
-        this.name = name;
     }
 
-    public long getID() {
-        return chatID;
-    }
-
-    public String getName() {
-        return (name != null) ? name : String.valueOf(getID());
-    }
     public Player getDealer() {
         return get(this.dealer);
     }
@@ -72,9 +63,10 @@ public class Table extends ArrayList<Player> {
         if (size() == MAX_PLAYERS)
             throw new BadConditionException("Maximum number of players (" + MAX_PLAYERS + ") reached");
         if (this.contains(player))
-            throw new RuleViolationException(player.getName() + " is already on table " + chatID);
+            throw new RuleViolationException(player.getName() + " is already on table");
         add(player);
-        System.out.println(player.getName() + " joins table " + chatID);
+        playersById.put(player.getId(), indexOf(player));
+        System.out.println(player.getName() + " joins table");
     }
 
     public long challengerCount() {
@@ -87,4 +79,11 @@ public class Table extends ArrayList<Player> {
         return get(getNextPlayerFrom(currentIndex, Player::inChallenge));
     }
 
+    public Player getById(String id) {
+        return get(playersById.get(id));
+    }
+
+    public boolean containsPlayer(String id) {
+        return playersById.containsKey(id);
+    }
 }

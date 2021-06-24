@@ -17,6 +17,7 @@ public class Player extends Dealer<PlayerState> {
     private int cash;
     private final Collection<Card> discarded = new HashSet<>();
     private int wallet = 1000;
+    private final String id;
 
     public static class PlayerTransition extends AbstractTransition<PlayerState> {
         PlayerTransition(PlayerState before, PlayerState after) {
@@ -35,8 +36,9 @@ public class Player extends Dealer<PlayerState> {
         }
     }
 
-    public Player(String name) {
+    public Player(String id, String name) {
         super(name);
+        this.id = id;
         initState(PlayerState.OUT_OF_CHIPS);
         PlayerActionMap actionMap = new PlayerActionMap(this);
         actionMap.put(new PlayerTransition(PlayerState.OUT_OF_CHIPS, PlayerState.LOADED), this::buyChips);
@@ -104,6 +106,11 @@ public class Player extends Dealer<PlayerState> {
         actionMap.put(new PlayerTransition(PlayerState.OUT_OF_CHIPS, PlayerState.OUT_OF_CHIPS), this::accept);
         initActions(actionMap);
     }
+
+    public String getId() {
+        return id;
+    }
+
 
     public Stack getLastBet() {
         return lastBet;

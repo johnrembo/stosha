@@ -81,7 +81,7 @@ public class CommandsHandler extends CacheCommandBot {
                         String globalAnswerText;
                         String privateAnswerText = null;
                         try {
-                            handler.getAction(message.getText()).run();
+                            handler.handle(message.getText());
                             globalAnswerText = handler.getGlobalAnswer();
                             privateAnswerText = handler.getPrivateAnswer();
                         } catch (BadStateException e) {

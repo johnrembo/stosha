@@ -1,9 +1,10 @@
 package ru.rembo.bot.telegram.statemachine;
 
 public interface EventHandler<V> {
-    Runnable getAction(V obj);
 
     boolean handles(V obj);
+
+    void handle(V obj);
 
     V getPrivateAnswer();
 

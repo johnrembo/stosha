@@ -5,17 +5,18 @@ import ru.rembo.bot.telegram.statemachine.BadStateException;
 import java.util.Collection;
 
 public class Game {
-    private final Table table;
-    private final Casino casino;
+    private Deck deck;
+    private final Table table = new Table();
+    private final Casino casino = new Casino(5);
     private Round round;
     private int smallBlindAmount = 5, bigBlindAmount = 10;
-    private String globalMessage;
+    private String globalResult;
+    private String privateResult;
+    private String[] args;
 
-    public Game(Casino casino, Table table) {
-        this.table = table;
-        this.casino = casino;
-        this.globalMessage = "Game started at table " + table.getName();
-        System.out.println(this.globalMessage);
+    public Game(long ID, String name) {
+        this.globalResult = "Game started";
+        System.out.println(this.globalResult);
     }
 
     public int getSmallBlindAmount() {
@@ -29,8 +30,8 @@ public class Game {
     public void setBlinds(int smallBlindAmount, int bigBlindAmount) {
         this.smallBlindAmount = smallBlindAmount;
         this.bigBlindAmount = bigBlindAmount;
-        this.globalMessage = "Blinds set to " + smallBlindAmount + ", " + bigBlindAmount;
-        System.out.println(this.globalMessage);
+        this.globalResult = "Blinds set to " + smallBlindAmount + ", " + bigBlindAmount;
+        System.out.println(this.globalResult);
     }
 
     public Casino getCasino() {
@@ -45,9 +46,8 @@ public class Game {
         player.actTo(PlayerState.SHUFFLED);
     }
 
-    public void join(Player player) {
-        player.actTo(PlayerState.SPECTATOR, this);
-        table.addPlayer(player);
+    private void join(Player player) {
+        player.actTo(PlayerState.SPECTATOR);
     }
 
     public void giveDeck(Player dealer, Deck deck) {
@@ -227,15 +227,32 @@ public class Game {
         player.actTo(PlayerState.AWAY);
     }
 
-    public String getGlobalMessage() {
-        return globalMessage;
+    public String getGlobalResult() {
+        return globalResult;
     }
 
-    public void executeEvent() {
+    public String getPrivateResult() {
+        return privateResult;
     }
 
-    public void join() {
-        join(new Player("ID"));
-        globalMessage = "ID Joined";
+    public boolean playerExists(String id) {
+        return table.containsPlayer(id);
+    }
+
+    public void doCreate() {
+        if (!playerExists(args[0])) {
+            Player player = new Player(args[0], args[1]);
+            table.addPlayer(player);
+            globalResult = "Welcome " + player.getName() + "!";
+        }
+
+    }
+
+    public void setArgs(String[] args) {
+        this.args = args;
+    }
+
+    public void doJoin() {
+        table.getById(args[0]).actTo(PlayerState.SPECTATOR);
     }
 }

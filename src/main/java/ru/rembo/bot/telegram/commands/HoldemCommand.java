@@ -12,7 +12,6 @@ import ru.rembo.bot.telegram.holdem.*;
 import ru.rembo.bot.telegram.statemachine.AbstractEventMap;
 import ru.rembo.bot.telegram.statemachine.EventHandler;
 
-import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,20 +23,17 @@ import java.util.regex.Pattern;
 
 public class HoldemCommand extends BotCommand implements IBotCommand, IManCommand, EventHandler<String> {
 
-    private Table table;
-    private Casino casino;
-    private Deck deck;
-    private Game game;
-    private final HashMap<Long, Player> players = new HashMap<>();
     private Message message;
+    private Game game;
     private String privateAnswer;
     private String globalAnswer;
 
+    private HoldemParsedEvent parsedEvent;
     private final AbstractEventMap<HoldemEvent, HoldemCommand> eventMap = new AbstractEventMap<HoldemEvent, HoldemCommand>() {
         @Override
         public void initEventMap(HoldemCommand handler) {
-            put(HoldemEvent.NEW_PLAYER, handler::newPlayer);
-            put(HoldemEvent.JOIN_PLAYER, game::join);
+            put(HoldemEvent.NEW_PLAYER, game::doCreate);
+            put(HoldemEvent.JOIN_PLAYER, game::doJoin);
         }
     };
 
@@ -68,16 +64,17 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                 smallBlind = Integer.parseInt(startMatcher.group("small"));
                 bigBlind = Integer.parseInt(startMatcher.group("big"));
             }
-            this.table = new Table(message.getChatId(), message.getChat().getTitle());
-            this.casino = new Casino(5);
-            this.deck = new Deck();
-            this.game = new Game(this.casino, this.table);
-            eventMap.initEventMap(this);
-            String chatMessage = this.game.getGlobalMessage();
-            this.game.setBlinds(smallBlind, bigBlind);
-            chatMessage = chatMessage + "\n" + this.game.getGlobalMessage();
-            answerChatId = message.getChatId().toString();
-            answerText = chatMessage;
+            if (this.game == null) {
+                this.game = new Game(message.getChatId(), message.getChat().getTitle());
+                eventMap.initEventMap(this);
+                String chatMessage = this.game.getGlobalResult();
+                this.game.setBlinds(smallBlind, bigBlind);
+                chatMessage = chatMessage + "\n" + this.game.getGlobalResult();
+                answerText = chatMessage;
+            } else {
+                answerText = "Game already started";
+            }
+
         }
         if (answerText != null) {
             try {
@@ -117,15 +114,22 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
     }
 
     @Override
-    public Runnable getAction(String text) {
-        HoldemEvent event = parse(text);
-        return this.eventMap.get(event);
+    public boolean handles(String text) {
+        if ((parsedEvent == null) || !parsedEvent.getText().equals(text)) {
+            String[] args = new String[]{message.getFrom().getId().toString(), message.getFrom().getFirstName()};
+            parsedEvent = new HoldemParsedEvent(text, args);
+            game.setArgs(parsedEvent.getArgs());
+        }
+        return this.eventMap.containsKey(parsedEvent.getEvent());
     }
 
     @Override
-    public boolean handles(String text) {
-        HoldemEvent event = parse(text);
-        return this.eventMap.containsKey(event);
+    public void handle(String text) {
+        if (handles(text)) {
+            this.eventMap.get(parsedEvent.getEvent()).run();
+            globalAnswer = game.getGlobalResult();
+            privateAnswer = game.getPrivateResult();
+        }
     }
 
     @Override
@@ -135,23 +139,11 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
 
     @Override
     public String getGlobalAnswer() {
-        return game.getGlobalMessage();
+        return globalAnswer;
     }
 
     @Override
     public String getHandlerIdentifier() {
         return getCommandIdentifier();
     }
-
-    private HoldemEvent parse(String text) {
-        return text.contains("в игре") ? HoldemEvent.JOIN_PLAYER : null;
-    }
-
-    private void newPlayer() {
-        if (!players.containsKey(message.getChatId())) {
-            players.put(message.getChatId(), new Player("name"));
-        }
-    }
-
-
 }

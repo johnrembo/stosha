@@ -5,19 +5,12 @@ public class GameRunner {
     public static void main(String[] args) {
         long chatID = 0;
         for (int i = 0; i < 1; i++) {
-            Player player1 = new Player("Player One");
-            Player player2 = new Player("Player Two");
-            Player player3 = new Player("Player Three");
-            Player player4 = new Player("Player Four");
-            Player player5 = new Player("Player Five");
-            Table table = new Table(chatID, "test");
-            Casino casino = new Casino(5);
-            Deck deck = new Deck();
-            Game game = new Game(casino, table);
-            game.join(player1);
-            game.join(player2);
-            game.join(player3);
-            game.join(player4);
+            Game game = new Game(1,"Test");
+            /*
+            game.jo(new Player("1","Player One"));
+            game.doJoin(new Player("2","Player One"));
+            game.doJoin(new Player("3","Player One"));
+            game.doJoin(new Player("4","Player One"));
             player1.cashIn(casino, 65);
             player2.cashIn(casino, 200);
             player3.cashIn(casino, 100);
@@ -66,6 +59,8 @@ public class GameRunner {
             game.doRaise(player2, 100);
             game.doFold(player4);
             game.doHiddenRank(player2);
+
+             */
         }
     }
 
