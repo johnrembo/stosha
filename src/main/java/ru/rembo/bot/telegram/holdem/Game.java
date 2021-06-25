@@ -1,8 +1,11 @@
 package ru.rembo.bot.telegram.holdem;
 
+import ru.rembo.bot.telegram.GlobalProperties;
 import ru.rembo.bot.telegram.statemachine.BadStateException;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Locale;
 
 public class Game {
     private Deck deck;
@@ -12,13 +15,15 @@ public class Game {
     private int smallBlindAmount = 5, bigBlindAmount = 10;
     private String globalResult;
     private String privateResult;
-    private String[] args;
+    private HoldemParsedEvent event;
 
     public Game(long ID, String name) {
-        this.globalResult = "Game started";
-        System.out.println(this.globalResult);
+        this.globalResult = getRandomOutput("game.Game");
     }
 
+    public Table getTable() {
+        return table;
+    }
     public int getSmallBlindAmount() {
         return smallBlindAmount;
     }
@@ -27,10 +32,16 @@ public class Game {
         return bigBlindAmount;
     }
 
+    private String getRandomOutput(String key) {
+        String[] messages =  GlobalProperties.outputMessages.get(GlobalProperties.defaultLocale)
+                .getString(key).split(";");
+        return messages[(int) (Math.random() * (Arrays.stream(messages).count() - 1))];
+    }
+
     public void setBlinds(int smallBlindAmount, int bigBlindAmount) {
         this.smallBlindAmount = smallBlindAmount;
         this.bigBlindAmount = bigBlindAmount;
-        this.globalResult = "Blinds set to " + smallBlindAmount + ", " + bigBlindAmount;
+        this.globalResult = String.format(getRandomOutput("game.setBlinds"), smallBlindAmount, bigBlindAmount);
         System.out.println(this.globalResult);
     }
 
@@ -68,7 +79,6 @@ public class Game {
     public void nextStage(RoundState lastState, Player player) {
         if (table.challengerCount() == 1) {
             System.out.println("We have a winner");
-//            doRank(table.getNextChallengingFrom(player));
             table.getNextChallengingFrom(player).actTo(PlayerState.OPTIONAL_SHOWDOWN);
             round.actTo(RoundState.OPTIONAL_SHOWDOWN);
         } else if (table.challengerCount() - table.countByState(PlayerState.ALL_IN) == 0) {
@@ -235,24 +245,32 @@ public class Game {
         return privateResult;
     }
 
-    public boolean playerExists(String id) {
+    public boolean playerExists(int id) {
         return table.containsPlayer(id);
     }
 
     public void doCreate() {
-        if (!playerExists(args[0])) {
-            Player player = new Player(args[0], args[1]);
+        if (!playerExists(event.getId())) {
+            Player player = new Player(event.getId(), event.getName());
             table.addPlayer(player);
-            globalResult = "Welcome " + player.getName() + "!";
+            this.globalResult = String.format(event.getOutputString(), event.getName());
+        } else {
+            throw new BadStateException(table.getById(event.getId()).getState(), table.getById(event.getId()).getState());
         }
-
     }
 
-    public void setArgs(String[] args) {
-        this.args = args;
+    public void setEvent(HoldemParsedEvent event) {
+        this.event = event;
     }
 
     public void doJoin() {
-        table.getById(args[0]).actTo(PlayerState.SPECTATOR);
+        table.getById(event.getId()).actTo(PlayerState.SPECTATOR);
+        this.globalResult = String.format(event.getOutputString(), event.getName());
+    }
+
+    public void doByChips() {
+        table.getById(event.getId()).cashIn(casino, Integer.parseInt(event.getArgs().get("sum")));
+        this.globalResult = String.format(event.getOutputString() + ": "
+                + table.getById(event.getId()).getPlayerMessage(), event.getName(), event.getArgs().get("sum"));
     }
 }

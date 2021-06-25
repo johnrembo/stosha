@@ -1,14 +1,14 @@
 package ru.rembo.bot.telegram.statemachine;
 
-public interface EventHandler<V> {
+public interface EventHandler<T, S> {
 
-    boolean handles(V obj);
+    boolean handles(T event);
 
-    void handle(V obj);
+    void handle(T event);
 
-    V getPrivateAnswer();
+    S getPrivateAnswer();
 
-    V getGlobalAnswer();
+    S getGlobalAnswer();
 
-    V getHandlerIdentifier();
+    String getHandlerIdentifier();
 }

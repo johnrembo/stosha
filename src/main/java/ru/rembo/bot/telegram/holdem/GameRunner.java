@@ -1,5 +1,7 @@
 package ru.rembo.bot.telegram.holdem;
 
+import java.util.Locale;
+
 public class GameRunner {
 
     public static void main(String[] args) {

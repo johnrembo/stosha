@@ -1,20 +1,41 @@
 package ru.rembo.bot.telegram.holdem;
 
+import org.telegram.telegrambots.meta.api.objects.Message;
+import ru.rembo.bot.telegram.GlobalProperties;
 import ru.rembo.bot.telegram.statemachine.AbstractParsedEvent;
 
-import java.util.Locale;
+import java.util.Arrays;
 
-public class HoldemParsedEvent extends AbstractParsedEvent<HoldemEvent> {
+public class HoldemParsedEvent extends AbstractParsedEvent<HoldemEvent, Message> {
 
-    public HoldemParsedEvent(String text, String[] args) {
-        super(text, args);
-        // TODO use telegram locale
-        // TODO parse event
+    private final int id;
+    private final String name;
 
-        if (text.contains("здесь")) {
-            eventEnum = HoldemEvent.NEW_PLAYER;
-        } else if (text.contains("играю")) {
-            eventEnum = HoldemEvent.JOIN_PLAYER;
+    public HoldemParsedEvent(Message message) {
+        super(message);
+        id = message.getFrom().getId();
+        name = message.getFrom().getFirstName();
+        GlobalProperties.InputPatternMatch match = GlobalProperties.matchInput(message);
+        if ((match != null) && match.key.contains("HoldemEvent.")) {
+            key = match.key;
+            eventEnum = HoldemEvent.valueOf(match.key.substring(12));
+            args = match.args;
+            locale = match.locale;
+            String[] messages =  GlobalProperties.outputMessages.get(locale).getString(key).split(";");
+            outputString = messages[(int) (Math.random() * (Arrays.stream(messages).count() - 1))];
         }
+    }
+
+
+    public int getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getText() {
+        return event.getText();
     }
 }

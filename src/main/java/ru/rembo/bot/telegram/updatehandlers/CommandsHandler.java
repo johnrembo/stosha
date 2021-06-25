@@ -75,29 +75,24 @@ public class CommandsHandler extends CacheCommandBot {
                     GlobalLogger.warning(e.getLocalizedMessage(), e);
                 }
             } else if (message.getChat().getType().equals("group")) {
-                Collection<EventHandler<String>> handlers = getRegisteredEventHandlers();
-                for (EventHandler<String> handler : handlers) {
-                    if (handler.handles(message.getText())) {
-                        String globalAnswerText;
-                        String privateAnswerText = null;
+                Collection<EventHandler<Message, SendMessage>> handlers = getRegisteredEventHandlers();
+                for (EventHandler<Message, SendMessage> handler : handlers) {
+                    if (handler.handles(message)) {
+                        SendMessage globalAnswer = new SendMessage();
+                        globalAnswer.setChatId(message.getChatId().toString());
+                        SendMessage privateAnswer = new SendMessage();
                         try {
-                            handler.handle(message.getText());
-                            globalAnswerText = handler.getGlobalAnswer();
-                            privateAnswerText = handler.getPrivateAnswer();
+                            handler.handle(message);
+                            globalAnswer = handler.getGlobalAnswer();
+                            privateAnswer = handler.getPrivateAnswer();
                         } catch (BadStateException e) {
-                            globalAnswerText = e.getMessage();
+                            globalAnswer.setText(e.getMessage());
                         }
                         try {
-                            if (globalAnswerText != null) {
-                                SendMessage globalAnswer = new SendMessage();
-                                globalAnswer.setChatId(message.getChatId().toString());
-                                globalAnswer.setText(globalAnswerText);
+                            if (!globalAnswer.getText().isEmpty()) {
                                 execute(globalAnswer);
                             }
-                            if (privateAnswerText != null) {
-                                SendMessage privateAnswer = new SendMessage();
-                                privateAnswer.setChatId(message.getFrom().getId().toString());
-                                privateAnswer.setText(privateAnswerText);
+                            if (privateAnswer.getText() != null) {
                                 execute(privateAnswer);
                             }
                         } catch (TelegramApiException e) {

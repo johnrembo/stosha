@@ -71,4 +71,10 @@ public class Stack extends ArrayList<Chip> {
         return part;
     }
 
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        forEach(builder::append);
+        return "[" + builder + "]";
+    }
 }

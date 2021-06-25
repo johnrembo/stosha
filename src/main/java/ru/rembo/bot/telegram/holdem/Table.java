@@ -7,7 +7,7 @@ import java.util.function.Predicate;
 public class Table extends ArrayList<Player> {
 
     private static final int MAX_PLAYERS = 8;
-    private final HashMap<String, Integer> playersById = new HashMap<>();
+    private final HashMap<Integer, Integer> playersById = new HashMap<>();
     private int dealer;
 
     public Table() {
@@ -79,11 +79,11 @@ public class Table extends ArrayList<Player> {
         return get(getNextPlayerFrom(currentIndex, Player::inChallenge));
     }
 
-    public Player getById(String id) {
+    public Player getById(int id) {
         return get(playersById.get(id));
     }
 
-    public boolean containsPlayer(String id) {
+    public boolean containsPlayer(int id) {
         return playersById.containsKey(id);
     }
 }

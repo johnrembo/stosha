@@ -32,7 +32,7 @@ public abstract class AbstractActor<T extends Enum<T>> implements ActorBehaviour
         if (getActionMap().containsKey(transition)) {
             getActionMap().run(transition);
         } else {
-            throw new BadStateException("Bad behaviour: " + before + " -> " + after);
+            throw new BadStateException(before, after);
         }
     }
 

@@ -2,6 +2,7 @@ package ru.rembo.bot.telegram.commands;
 
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.IBotCommand;
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.helpCommand.IManCommand;
+import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
@@ -10,6 +11,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.rembo.bot.telegram.GlobalLogger;
 import ru.rembo.bot.telegram.holdem.*;
 import ru.rembo.bot.telegram.statemachine.AbstractEventMap;
+import ru.rembo.bot.telegram.statemachine.BadStateException;
 import ru.rembo.bot.telegram.statemachine.EventHandler;
 
 import java.util.regex.Matcher;
@@ -21,12 +23,12 @@ import java.util.regex.Pattern;
  * @author Rembo
  */
 
-public class HoldemCommand extends BotCommand implements IBotCommand, IManCommand, EventHandler<String> {
+public class HoldemCommand extends BotCommand implements IBotCommand, IManCommand, EventHandler<Message, SendMessage> {
 
     private Message message;
     private Game game;
-    private String privateAnswer;
-    private String globalAnswer;
+    private final SendMessage privateAnswer = new SendMessage();
+    private final SendMessage globalAnswer = new SendMessage();
 
     private HoldemParsedEvent parsedEvent;
     private final AbstractEventMap<HoldemEvent, HoldemCommand> eventMap = new AbstractEventMap<HoldemEvent, HoldemCommand>() {
@@ -34,6 +36,8 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
         public void initEventMap(HoldemCommand handler) {
             put(HoldemEvent.NEW_PLAYER, game::doCreate);
             put(HoldemEvent.JOIN_PLAYER, game::doJoin);
+            put(HoldemEvent.BUY_CHIPS, game::doByChips);
+
         }
     };
 
@@ -114,31 +118,47 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
     }
 
     @Override
-    public boolean handles(String text) {
-        if ((parsedEvent == null) || !parsedEvent.getText().equals(text)) {
-            String[] args = new String[]{message.getFrom().getId().toString(), message.getFrom().getFirstName()};
-            parsedEvent = new HoldemParsedEvent(text, args);
-            game.setArgs(parsedEvent.getArgs());
+    public boolean handles(Message event) {
+        if (game != null) {
+            this.message = event;
+            if ((parsedEvent == null) || !parsedEvent.getText().equals(event.getText())) {
+                parsedEvent = new HoldemParsedEvent(event);
+                game.setEvent(parsedEvent);
+            }
+            return this.eventMap.containsKey(parsedEvent.getEvent());
         }
-        return this.eventMap.containsKey(parsedEvent.getEvent());
+        return false;
     }
 
     @Override
-    public void handle(String text) {
-        if (handles(text)) {
-            this.eventMap.get(parsedEvent.getEvent()).run();
-            globalAnswer = game.getGlobalResult();
-            privateAnswer = game.getPrivateResult();
+    public void handle(Message event) {
+        if (handles(event)) {
+            try {
+                if (!game.playerExists(parsedEvent.getId())) {
+                    Player player = new Player(parsedEvent.getId(), parsedEvent.getName());
+                    game.getTable().addPlayer(player);
+                }
+                this.eventMap.get(parsedEvent.getEvent()).run();
+                globalAnswer.setText(game.getGlobalResult());
+                privateAnswer.setChatId(message.getFrom().getId().toString());
+                if (game.getPrivateResult() != null) {
+                    privateAnswer.setText(game.getPrivateResult());
+                }
+            } catch (BadStateException e) {
+                globalAnswer.setText(String.format(e.getLocalizedMessage(parsedEvent.getLocale())
+                        , message.getFrom().getFirstName()));
+            }
+            globalAnswer.setChatId(message.getChatId().toString());
         }
     }
 
     @Override
-    public String getPrivateAnswer() {
+    public SendMessage getPrivateAnswer() {
         return privateAnswer;
     }
 
     @Override
-    public String getGlobalAnswer() {
+    public SendMessage getGlobalAnswer() {
         return globalAnswer;
     }
 

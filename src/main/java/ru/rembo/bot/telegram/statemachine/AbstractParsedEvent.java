@@ -1,14 +1,20 @@
 package ru.rembo.bot.telegram.statemachine;
 
-public class AbstractParsedEvent<T extends Enum<T>> implements ParsedEvent<T> {
+import java.util.HashMap;
+import java.util.Locale;
+
+public class AbstractParsedEvent<T extends Enum<T>, S> implements ParsedEvent<T> {
 
     protected T eventEnum;
-    protected String[] arguments;
-    private final String eventText;
+    protected HashMap<String, String> args;
+    protected final S event;
+    protected Locale locale;
+    protected String key;
+    protected String outputString;
 
-    public AbstractParsedEvent(String eventText, String[] initArgs) {
-        this.eventText = eventText;
-        arguments = initArgs;
+
+    public AbstractParsedEvent(S event) {
+        this.event = event;
     }
 
     @Override
@@ -17,11 +23,23 @@ public class AbstractParsedEvent<T extends Enum<T>> implements ParsedEvent<T> {
     }
 
     @Override
-    public String[] getArgs() {
-        return arguments;
+    public HashMap<String, String> getArgs() {
+        return args;
     }
 
-    public String getText() {
-        return eventText;
+    @Override
+    public Locale getLocale() {
+        return locale;
     }
+
+    @Override
+    public String getKey() {
+        return key;
+    }
+
+    @Override
+    public String getOutputString() {
+        return outputString;
+    }
+
 }

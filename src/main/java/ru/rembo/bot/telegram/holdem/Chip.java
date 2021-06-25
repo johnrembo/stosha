@@ -33,4 +33,20 @@ public enum Chip {
     public int getValue() {
         return value;
     }
+
+
+    @Override
+    public String toString() {
+        switch (this) {
+            case ONE: return "⚪️";
+            case FIVE: return "\uD83D\uDD34";
+            case TEN: return "\uD83D\uDD35";
+            case TWENTY_FIVE: return "\uD83D\uDFE2";
+            case FIFTY: return "\uD83D\uDFE0️";
+            case HUNDRED: return "⚫️";
+            case FIVE_HUNDRED: return "\uD83D\uDFE3";
+            case THOUSAND: return "\uD83D\uDFE1";
+        }
+        return super.toString();
+    }
 }

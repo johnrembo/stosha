@@ -4,6 +4,7 @@ import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.IBotCommand;
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.ICommandRegistry;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.bots.AbsSender;
@@ -227,7 +228,7 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
         return this.commandRegistry.register(botCommand);
     }
 
-    public final boolean registerEventHandler(EventHandler<String> eventHandler) {
+    public final boolean registerEventHandler(EventHandler<Message, SendMessage> eventHandler) {
         return this.commandRegistry.register(eventHandler);
     }
 
@@ -256,7 +257,7 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
         return this.commandRegistry.getRegisteredCommand(commandIdentifier);
     }
 
-    public final Collection<EventHandler<String>> getRegisteredEventHandlers() {
+    public final Collection<EventHandler<Message, SendMessage>> getRegisteredEventHandlers() {
         return this.commandRegistry.getRegisteredEventHandlers();
     }
 

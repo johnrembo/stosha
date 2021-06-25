@@ -1,5 +1,6 @@
 package ru.rembo.bot.telegram.holdem;
 
+import org.checkerframework.checker.units.qual.C;
 import ru.rembo.bot.telegram.statemachine.AbstractActionMap;
 import ru.rembo.bot.telegram.statemachine.AbstractTransition;
 import ru.rembo.bot.telegram.statemachine.ActorBehaviour;
@@ -17,7 +18,8 @@ public class Player extends Dealer<PlayerState> {
     private int cash;
     private final Collection<Card> discarded = new HashSet<>();
     private int wallet = 1000;
-    private final String id;
+    private final int id;
+    private String playerMessage;
 
     public static class PlayerTransition extends AbstractTransition<PlayerState> {
         PlayerTransition(PlayerState before, PlayerState after) {
@@ -36,7 +38,7 @@ public class Player extends Dealer<PlayerState> {
         }
     }
 
-    public Player(String id, String name) {
+    public Player(int id, String name) {
         super(name);
         this.id = id;
         initState(PlayerState.OUT_OF_CHIPS);
@@ -107,10 +109,13 @@ public class Player extends Dealer<PlayerState> {
         initActions(actionMap);
     }
 
-    public String getId() {
+    public int getId() {
         return id;
     }
 
+    public String getPlayerMessage() {
+        return playerMessage;
+    }
 
     public Stack getLastBet() {
         return lastBet;
@@ -154,7 +159,9 @@ public class Player extends Dealer<PlayerState> {
 
     private void buyChips() {
         System.out.println(name + " buys chips for " + cash);
-        stack.deposit(casino.change(cash));
+        Stack chips = new Stack(casino.change(cash));
+        playerMessage = chips.toString();
+        stack.deposit(chips);
         this.wallet = this.wallet - cash;
     }
 
