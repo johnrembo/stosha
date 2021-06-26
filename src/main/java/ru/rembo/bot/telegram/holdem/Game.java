@@ -5,17 +5,17 @@ import ru.rembo.bot.telegram.statemachine.BadStateException;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Locale;
+import java.util.HashMap;
 
 public class Game {
-    private Deck deck;
+    private final Deck deck = new Deck();
     private final Table table = new Table();
     private final Casino casino = new Casino(5);
     private Round round;
     private int smallBlindAmount = 5, bigBlindAmount = 10;
     private String globalResult;
-    private String privateResult;
-    private HoldemParsedEvent event;
+    private final HashMap<Integer, String> bulkResult = new HashMap<>();
+    private HoldemParsedEvent parsedEvent;
 
     public Game(long ID, String name) {
         this.globalResult = getRandomOutput("game.Game");
@@ -42,7 +42,6 @@ public class Game {
         this.smallBlindAmount = smallBlindAmount;
         this.bigBlindAmount = bigBlindAmount;
         this.globalResult = String.format(getRandomOutput("game.setBlinds"), smallBlindAmount, bigBlindAmount);
-        System.out.println(this.globalResult);
     }
 
     public Casino getCasino() {
@@ -53,27 +52,9 @@ public class Game {
         return casino.getSmallestChip();
     }
 
-    public void shuffleDeck(Player player) {
-        player.actTo(PlayerState.SHUFFLED);
-    }
-
-    private void join(Player player) {
-        player.actTo(PlayerState.SPECTATOR);
-    }
-
     public void giveDeck(Player dealer, Deck deck) {
         dealer.actTo(PlayerState.DEALER, deck);
         table.setDealer(dealer);
-    }
-
-    public void doDeal(Player dealer, Table table) {
-        dealer.actTo(PlayerState.DEALING, table);
-        table.stream().filter(Player::canPlay).forEach(player ->
-                player.actTo(PlayerState.IN_LINE, dealer.getDealtCards().get(player)));
-        round = new Round(this);
-        System.out.println("Round started with " + table.activePlayerCount() + " players");
-        round.actTo(RoundState.SMALL_BLIND);
-        table.getNextActivePlayerFrom(dealer).actTo(PlayerState.SMALL_BLIND);
     }
 
     public void nextStage(RoundState lastState, Player player) {
@@ -233,44 +214,86 @@ public class Game {
         dealer.actTo(PlayerState.SHUFFLED);
     }
 
-    public void doGoAway(Player player) {
-        player.actTo(PlayerState.AWAY);
+    public void doDeal() {
+        // debug if (table.readyPlayerCount() <= 1) throw new BadStateException("NOT_ENOUGH_PLAYERS");
+        table.getById(parsedEvent.getId()).actTo(PlayerState.DEALING, table);
+        table.stream().filter(Player::canPlay).forEach(player -> {
+                player.actTo(PlayerState.IN_LINE, table.getById(parsedEvent.getId()).getDealtCards().get(player));
+                bulkResult.put(player.getId()
+                        , table.getById(parsedEvent.getId()).getDealtCards().get(player).toString());
+        });
+        round = new Round(this);
+        round.actTo(RoundState.SMALL_BLIND);
+        Player nextPlayer = table.getNextActivePlayerFrom(table.getById(parsedEvent.getId()));
+        nextPlayer.actTo(PlayerState.SMALL_BLIND);
+        globalResult = String.format(parsedEvent.getOutputString()+ ": " + nextPlayer.getAndClearGlobalMessage()
+                , table.getById(parsedEvent.getId()).getName(), nextPlayer.getName(), table.activePlayerCount());
+    }
+
+    public void doShuffle() {
+        table.getById(parsedEvent.getId()).actTo(PlayerState.SHUFFLED);
+        globalResult = String.format(parsedEvent.getOutputString(), parsedEvent.getName());
+    }
+
+    public void doGiveDeck() {
+        table.getById(parsedEvent.getId()).actTo(PlayerState.DEALER, deck);
+        table.setDealer(table.getById(parsedEvent.getId()));
+        globalResult = String.format(parsedEvent.getOutputString(), parsedEvent.getName());
+    }
+
+    public void doComeBack() {
+        table.getById(parsedEvent.getId()).actTo(PlayerState.SPECTATOR);
+        globalResult = String.format(parsedEvent.getOutputString(), parsedEvent.getName());
+    }
+
+    public void doGoAway() {
+        table.getById(parsedEvent.getId()).actTo(PlayerState.AWAY);
+        globalResult = String.format(parsedEvent.getOutputString(), parsedEvent.getName());
+    }
+
+    public void doCreate() {
+        if (!playerExists(parsedEvent.getId())) {
+            Player player = new Player(parsedEvent.getId(), parsedEvent.getName(), parsedEvent.getLocale());
+            table.addPlayer(player);
+            globalResult = String.format(parsedEvent.getOutputString(), parsedEvent.getName());
+        } else {
+            throw new BadStateException(table.getById(parsedEvent.getId()).getState(), table.getById(parsedEvent.getId()).getState());
+        }
+    }
+
+    public void doJoin() {
+        table.getById(parsedEvent.getId()).actTo(PlayerState.SPECTATOR);
+        globalResult = String.format(parsedEvent.getOutputString(), parsedEvent.getName());
+    }
+
+    public void doByChips() {
+        table.getById(parsedEvent.getId()).cashIn(casino, Integer.parseInt(parsedEvent.getArgs().get("sum")));
+        globalResult = String.format(parsedEvent.getOutputString() + ": "
+                + table.getById(parsedEvent.getId()).getAndClearGlobalMessage(), parsedEvent.getName(), parsedEvent.getArgs().get("sum"));
+        bulkResult.put(parsedEvent.getId(), table.getById(parsedEvent.getId()).getAndClearPrivateMessage());
     }
 
     public String getGlobalResult() {
         return globalResult;
     }
 
-    public String getPrivateResult() {
-        return privateResult;
-    }
-
     public boolean playerExists(int id) {
         return table.containsPlayer(id);
     }
 
-    public void doCreate() {
-        if (!playerExists(event.getId())) {
-            Player player = new Player(event.getId(), event.getName());
-            table.addPlayer(player);
-            this.globalResult = String.format(event.getOutputString(), event.getName());
-        } else {
-            throw new BadStateException(table.getById(event.getId()).getState(), table.getById(event.getId()).getState());
-        }
+    public void setParsedEvent(HoldemParsedEvent parsedEvent) {
+        this.parsedEvent = parsedEvent;
     }
 
-    public void setEvent(HoldemParsedEvent event) {
-        this.event = event;
+    public void clearGlobalResult() {
+        globalResult = "";
     }
 
-    public void doJoin() {
-        table.getById(event.getId()).actTo(PlayerState.SPECTATOR);
-        this.globalResult = String.format(event.getOutputString(), event.getName());
+    public HashMap<Integer, String> getBulkResult() {
+        return bulkResult;
     }
 
-    public void doByChips() {
-        table.getById(event.getId()).cashIn(casino, Integer.parseInt(event.getArgs().get("sum")));
-        this.globalResult = String.format(event.getOutputString() + ": "
-                + table.getById(event.getId()).getPlayerMessage(), event.getName(), event.getArgs().get("sum"));
+    public void clearBulkResult() {
+        bulkResult.clear();
     }
 }

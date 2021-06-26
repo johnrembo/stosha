@@ -12,6 +12,7 @@ import ru.rembo.bot.telegram.statemachine.BadStateException;
 import ru.rembo.bot.telegram.statemachine.EventHandler;
 
 import java.util.Collection;
+import java.util.HashSet;
 
 /**
  * Telegram @pulse_day Java Bot
@@ -78,22 +79,26 @@ public class CommandsHandler extends CacheCommandBot {
                 Collection<EventHandler<Message, SendMessage>> handlers = getRegisteredEventHandlers();
                 for (EventHandler<Message, SendMessage> handler : handlers) {
                     if (handler.handles(message)) {
-                        SendMessage globalAnswer = new SendMessage();
-                        globalAnswer.setChatId(message.getChatId().toString());
-                        SendMessage privateAnswer = new SendMessage();
                         try {
                             handler.handle(message);
-                            globalAnswer = handler.getGlobalAnswer();
-                            privateAnswer = handler.getPrivateAnswer();
-                        } catch (BadStateException e) {
-                            globalAnswer.setText(e.getMessage());
-                        }
-                        try {
-                            if (!globalAnswer.getText().isEmpty()) {
-                                execute(globalAnswer);
+                            handler.getGlobalAnswer(message).setChatId(message.getChatId().toString());
+                            if (!handler.getGlobalAnswer(message).getText().isEmpty()) {
+                                execute(handler.getGlobalAnswer(message));
+                                handler.clearGlobalAnswer(message);
                             }
-                            if (privateAnswer.getText() != null) {
-                                execute(privateAnswer);
+                            HashSet<SendMessage> bulkAnswer = handler.getBulkAnswer(message);
+                            for (SendMessage sendMessage : bulkAnswer) {
+                                execute(sendMessage);
+                            }
+                            handler.clearBulkAnswer(message);
+                        } catch (BadStateException e) {
+                            SendMessage errorAnswer = new SendMessage();
+                            errorAnswer.setChatId(message.getChatId().toString());
+                            errorAnswer.setText(e.getMessage());
+                            try {
+                                execute(errorAnswer);
+                            } catch (TelegramApiException ex) {
+                                GlobalLogger.warning(e.getLocalizedMessage(), e);
                             }
                         } catch (TelegramApiException e) {
                             GlobalLogger.warning(e.getLocalizedMessage(), e);

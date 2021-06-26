@@ -1,14 +1,20 @@
 package ru.rembo.bot.telegram.statemachine;
 
+import java.util.HashSet;
+
 public interface EventHandler<T, S> {
+
+    String getHandlerIdentifier();
 
     boolean handles(T event);
 
     void handle(T event);
 
-    S getPrivateAnswer();
+    S getGlobalAnswer(T event);
 
-    S getGlobalAnswer();
+    void clearGlobalAnswer(T event);
 
-    String getHandlerIdentifier();
+    HashSet<S> getBulkAnswer(T event);
+
+    void clearBulkAnswer(T event);
 }

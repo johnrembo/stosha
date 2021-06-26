@@ -2,7 +2,6 @@ package ru.rembo.bot.telegram.commands;
 
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.IBotCommand;
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.helpCommand.IManCommand;
-import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
@@ -14,6 +13,8 @@ import ru.rembo.bot.telegram.statemachine.AbstractEventMap;
 import ru.rembo.bot.telegram.statemachine.BadStateException;
 import ru.rembo.bot.telegram.statemachine.EventHandler;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,21 +26,12 @@ import java.util.regex.Pattern;
 
 public class HoldemCommand extends BotCommand implements IBotCommand, IManCommand, EventHandler<Message, SendMessage> {
 
+    private final HashMap<Long, Game> games = new HashMap<>();
+    private final HashMap<Long, AbstractEventMap<HoldemEvent, HoldemCommand>> eventMaps = new HashMap<>();
+    private SendMessage privateAnswer = new SendMessage();
+    private SendMessage globalAnswer = new SendMessage();
     private Message message;
-    private Game game;
-    private final SendMessage privateAnswer = new SendMessage();
-    private final SendMessage globalAnswer = new SendMessage();
-
     private HoldemParsedEvent parsedEvent;
-    private final AbstractEventMap<HoldemEvent, HoldemCommand> eventMap = new AbstractEventMap<HoldemEvent, HoldemCommand>() {
-        @Override
-        public void initEventMap(HoldemCommand handler) {
-            put(HoldemEvent.NEW_PLAYER, game::doCreate);
-            put(HoldemEvent.JOIN_PLAYER, game::doJoin);
-            put(HoldemEvent.BUY_CHIPS, game::doByChips);
-
-        }
-    };
 
     public HoldemCommand() {
         super("holdem", "Control Texas Hold'em croupier mode");
@@ -68,17 +60,35 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                 smallBlind = Integer.parseInt(startMatcher.group("small"));
                 bigBlind = Integer.parseInt(startMatcher.group("big"));
             }
-            if (this.game == null) {
-                this.game = new Game(message.getChatId(), message.getChat().getTitle());
-                eventMap.initEventMap(this);
-                String chatMessage = this.game.getGlobalResult();
-                this.game.setBlinds(smallBlind, bigBlind);
-                chatMessage = chatMessage + "\n" + this.game.getGlobalResult();
-                answerText = chatMessage;
+            if (!message.getChat().getType().equals("group")) {
+                answerText = "/" + getCommand() + " can be used only in group chats";
             } else {
-                answerText = "Game already started";
-            }
+                if (games.containsKey(message.getChatId())) {
+                    answerText = "Game for " + message.getChat().getTitle() + " already started";
+                } else {
+                    games.put(message.getChatId(), new Game(message.getChatId(), message.getChat().getTitle()));
+                    AbstractEventMap<HoldemEvent, HoldemCommand> eventMap = new AbstractEventMap<HoldemEvent, HoldemCommand>() {
+                        @Override
+                        public void initEventMap(HoldemCommand handler) {
+                            put(HoldemEvent.NEW_PLAYER, games.get(message.getChatId())::doCreate);
+                            put(HoldemEvent.JOIN_PLAYER, games.get(message.getChatId())::doJoin);
+                            put(HoldemEvent.BUY_CHIPS, games.get(message.getChatId())::doByChips);
+                            put(HoldemEvent.GO_AWAY, games.get(message.getChatId())::doGoAway);
+                            put(HoldemEvent.COME_BACK, games.get(message.getChatId())::doComeBack);
+                            put(HoldemEvent.GIVE_DECK, games.get(message.getChatId())::doGiveDeck);
+                            put(HoldemEvent.SHUFFLE_DECK, games.get(message.getChatId())::doShuffle);
+                            put(HoldemEvent.DEAL, games.get(message.getChatId())::doDeal);
+                        }
+                    };
+                    eventMaps.put(message.getChatId(), eventMap);
+                    eventMaps.get(message.getChatId()).initEventMap(this);
+                    String chatMessage = games.get(message.getChatId()).getGlobalResult();
 
+                    games.get(message.getChatId()).setBlinds(smallBlind, bigBlind);
+                    chatMessage = chatMessage + "\n" + this.games.get(message.getChatId()).getGlobalResult();
+                    answerText = chatMessage;
+                }
+            }
         }
         if (answerText != null) {
             try {
@@ -119,13 +129,13 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
 
     @Override
     public boolean handles(Message event) {
-        if (game != null) {
-            this.message = event;
+        message = event;
+        if (games.containsKey(message.getChatId())) {
             if ((parsedEvent == null) || !parsedEvent.getText().equals(event.getText())) {
                 parsedEvent = new HoldemParsedEvent(event);
-                game.setEvent(parsedEvent);
+                games.get(message.getChatId()).setParsedEvent(parsedEvent);
             }
-            return this.eventMap.containsKey(parsedEvent.getEvent());
+            return eventMaps.get(message.getChatId()).containsKey(parsedEvent.getEvent());
         }
         return false;
     }
@@ -134,36 +144,50 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
     public void handle(Message event) {
         if (handles(event)) {
             try {
-                if (!game.playerExists(parsedEvent.getId())) {
-                    Player player = new Player(parsedEvent.getId(), parsedEvent.getName());
-                    game.getTable().addPlayer(player);
+                if (!parsedEvent.getEvent().equals(HoldemEvent.NEW_PLAYER)
+                        && !games.get(message.getChatId()).playerExists(parsedEvent.getId())) {
+                    Player player = new Player(parsedEvent.getId(), parsedEvent.getName(), parsedEvent.getLocale());
+                    games.get(message.getChatId()).getTable().addPlayer(player);
                 }
-                this.eventMap.get(parsedEvent.getEvent()).run();
-                globalAnswer.setText(game.getGlobalResult());
-                privateAnswer.setChatId(message.getFrom().getId().toString());
-                if (game.getPrivateResult() != null) {
-                    privateAnswer.setText(game.getPrivateResult());
-                }
+                eventMaps.get(message.getChatId()).get(parsedEvent.getEvent()).run();
             } catch (BadStateException e) {
-                globalAnswer.setText(String.format(e.getLocalizedMessage(parsedEvent.getLocale())
+                throw new BadStateException(String.format(e.getLocalizedMessage(parsedEvent.getLocale())
                         , message.getFrom().getFirstName()));
             }
-            globalAnswer.setChatId(message.getChatId().toString());
         }
     }
 
-    @Override
-    public SendMessage getPrivateAnswer() {
-        return privateAnswer;
+    public HashSet<SendMessage> getBulkAnswer(Message event) {
+        HashSet<SendMessage> messages = new HashSet<>();
+        games.get(event.getChatId()).getBulkResult().forEach((id, text) -> {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(id.toString());
+            sendMessage.setText(text);
+            messages.add(sendMessage);
+        });
+        return messages;
     }
 
-    @Override
-    public SendMessage getGlobalAnswer() {
-        return globalAnswer;
+    public void clearBulkAnswer(Message event) {
+        games.get(event.getChatId()).clearBulkResult();
     }
 
     @Override
     public String getHandlerIdentifier() {
         return getCommandIdentifier();
     }
+
+    @Override
+    public SendMessage getGlobalAnswer(Message event) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(event.getChatId().toString());
+        sendMessage.setText(games.get(event.getChatId()).getGlobalResult());
+        return sendMessage;
+    }
+
+    @Override
+    public void clearGlobalAnswer(Message event) {
+        games.get(event.getChatId()).clearGlobalResult();
+    }
+
 }

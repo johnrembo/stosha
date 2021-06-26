@@ -119,9 +119,18 @@ public class GlobalProperties {
         }
     }
 
-    public static String getExceptionMessage(String message, Locale locale) {
+    public static String getRandomException(String message, Locale locale) {
         if (exceptionMessages.get(locale).containsKey(message)) {
             String[] messages = exceptionMessages.get(locale).getString(message).split(";");
+            return messages[(int) (Math.random() * (Arrays.stream(messages).count() - 1))];
+        } else {
+            return "Localized message not found for: " + message;
+        }
+    }
+
+    public static String getRandomOutput(String message, Locale locale) {
+        if (outputMessages.get(locale).containsKey(message)) {
+            String[] messages = outputMessages.get(locale).getString(message).split(";");
             return messages[(int) (Math.random() * (Arrays.stream(messages).count() - 1))];
         } else {
             return "Localized message not found for: " + message;

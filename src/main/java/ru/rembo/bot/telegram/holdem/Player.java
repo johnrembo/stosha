@@ -1,6 +1,6 @@
 package ru.rembo.bot.telegram.holdem;
 
-import org.checkerframework.checker.units.qual.C;
+import ru.rembo.bot.telegram.GlobalProperties;
 import ru.rembo.bot.telegram.statemachine.AbstractActionMap;
 import ru.rembo.bot.telegram.statemachine.AbstractTransition;
 import ru.rembo.bot.telegram.statemachine.ActorBehaviour;
@@ -8,6 +8,7 @@ import ru.rembo.bot.telegram.statemachine.Behaviour;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 
 public class Player extends Dealer<PlayerState> {
     private final Stack stack = new Stack();
@@ -19,7 +20,9 @@ public class Player extends Dealer<PlayerState> {
     private final Collection<Card> discarded = new HashSet<>();
     private int wallet = 1000;
     private final int id;
-    private String playerMessage;
+    private String globalMessage = "";
+    private String privateMessage = "";
+    private final Locale locale;
 
     public static class PlayerTransition extends AbstractTransition<PlayerState> {
         PlayerTransition(PlayerState before, PlayerState after) {
@@ -38,14 +41,15 @@ public class Player extends Dealer<PlayerState> {
         }
     }
 
-    public Player(int id, String name) {
+    public Player(int id, String name, Locale locale) {
         super(name);
         this.id = id;
+        this.locale = locale;
         initState(PlayerState.OUT_OF_CHIPS);
         PlayerActionMap actionMap = new PlayerActionMap(this);
         actionMap.put(new PlayerTransition(PlayerState.OUT_OF_CHIPS, PlayerState.LOADED), this::buyChips);
+        actionMap.put(new PlayerTransition(PlayerState.LOADED, PlayerState.LOADED), this::buyChips);
         actionMap.put(new PlayerTransition(PlayerState.LOADED, PlayerState.SPECTATOR), this::joinGame);
-        actionMap.put(new PlayerTransition(PlayerState.SPECTATOR, PlayerState.LOADED), this::leaveGame);
         actionMap.put(new PlayerTransition(PlayerState.SPECTATOR, PlayerState.AWAY), this::goAway);
         actionMap.put(new PlayerTransition(PlayerState.AWAY, PlayerState.SPECTATOR), this::comeBack);
         actionMap.put(new PlayerTransition(PlayerState.SPECTATOR, PlayerState.DEALER), this::takeDeck);
@@ -113,8 +117,16 @@ public class Player extends Dealer<PlayerState> {
         return id;
     }
 
-    public String getPlayerMessage() {
-        return playerMessage;
+    public String getAndClearGlobalMessage() {
+        String string = globalMessage;
+        globalMessage = "";
+        return string;
+    }
+
+    public String getAndClearPrivateMessage() {
+        String string = privateMessage;
+        privateMessage = "";
+        return string;
     }
 
     public Stack getLastBet() {
@@ -160,8 +172,9 @@ public class Player extends Dealer<PlayerState> {
     private void buyChips() {
         System.out.println(name + " buys chips for " + cash);
         Stack chips = new Stack(casino.change(cash));
-        playerMessage = chips.toString();
         stack.deposit(chips);
+        globalMessage = chips.toString();
+        privateMessage = stack.toString();
         this.wallet = this.wallet - cash;
     }
 
@@ -205,10 +218,12 @@ public class Player extends Dealer<PlayerState> {
     }
 
     private void acceptSmallBlind() {
+        globalMessage = GlobalProperties.getRandomOutput("player.acceptSmallBlind", locale);
         System.out.println(name + " is on small blind");
     }
 
     private void acceptBigBlind() {
+        globalMessage = GlobalProperties.getRandomOutput("player.acceptBigBlind", locale);
         System.out.println(name + " is on big blind");
     }
 
@@ -263,6 +278,7 @@ public class Player extends Dealer<PlayerState> {
     }
 
     private void leaveGame() {
+        globalMessage = GlobalProperties.getRandomOutput("player.leaveGame", locale);
         System.out.println(getName() + " leaves game");
     }
 

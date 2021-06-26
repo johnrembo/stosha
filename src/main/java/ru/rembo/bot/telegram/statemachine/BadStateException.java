@@ -28,6 +28,6 @@ public class BadStateException extends RuntimeException {
     }
 
     public String getLocalizedMessage(Locale locale) {
-        return GlobalProperties.getExceptionMessage(super.getMessage(), locale);
+        return GlobalProperties.getRandomException(super.getMessage(), locale);
     }
 }

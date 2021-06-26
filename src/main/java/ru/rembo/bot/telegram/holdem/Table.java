@@ -59,6 +59,9 @@ public class Table extends ArrayList<Player> {
         return stream().filter(Player::canAct).count();
     }
 
+    public long readyPlayerCount() {
+        return stream().filter(Player::canPlay).count();
+    }
     public void addPlayer(Player player) {
         if (size() == MAX_PLAYERS)
             throw new BadConditionException("Maximum number of players (" + MAX_PLAYERS + ") reached");
@@ -86,4 +89,5 @@ public class Table extends ArrayList<Player> {
     public boolean containsPlayer(int id) {
         return playersById.containsKey(id);
     }
+
 }
