@@ -65,6 +65,7 @@ public class Round  extends AbstractActor<RoundState> {
         actionMap.put(new RoundTransition(RoundState.TAKE_BET, RoundState.WAIT_TURN), this::nextStage);
         actionMap.put(new RoundTransition(RoundState.TAKE_BET, RoundState.WAIT_RIVER), this::nextStage);
         actionMap.put(new RoundTransition(RoundState.TAKE_BET, RoundState.SHOWDOWN), this::accept);
+        actionMap.put(new RoundTransition(RoundState.TAKE_BET, RoundState.OPTIONAL_SHOWDOWN), this::accept);
         actionMap.put(new RoundTransition(RoundState.WAIT_FLOP, RoundState.FLOP), this::showSharedCards);
         actionMap.put(new RoundTransition(RoundState.WAIT_TURN, RoundState.TURN), this::showSharedCards);
         actionMap.put(new RoundTransition(RoundState.WAIT_RIVER, RoundState.RIVER), this::showSharedCards);
@@ -277,6 +278,8 @@ public class Round  extends AbstractActor<RoundState> {
             roundBets.put(currentPlayer, new Stack());
         }
         int betSum = roundBets.get(currentPlayer).getSum() + part.getSum();
+        if (getState().equals(RoundState.SMALL_BLIND)) callAmount = game.getSmallBlindAmount();
+        if (getState().equals(RoundState.BIG_BLIND)) callAmount = game.getBigBlindAmount();
         if (currentPlayer.getStackSum() != part.getSum() /* TODO add and rules allow low all ins*/) {
             if (betSum < callAmount) throw new RuleViolationException("Cannot take bet less than "
                     + (callAmount - roundBets.get(currentPlayer).getSum()));

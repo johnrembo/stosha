@@ -13,5 +13,5 @@ public interface ParsedEvent <T extends Enum<T>> {
 
     String getKey();
 
-    String getOutputString();
+    String getOutputString(Object... args);
 }

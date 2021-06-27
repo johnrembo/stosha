@@ -1,5 +1,7 @@
 package ru.rembo.bot.telegram.statemachine;
 
+import ru.rembo.bot.telegram.GlobalProperties;
+
 import java.util.HashMap;
 import java.util.Locale;
 
@@ -38,8 +40,8 @@ public class AbstractParsedEvent<T extends Enum<T>, S> implements ParsedEvent<T>
     }
 
     @Override
-    public String getOutputString() {
-        return outputString;
+    public String getOutputString(Object... args) {
+        return String.format(outputString, args);
     }
 
 }

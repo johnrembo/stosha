@@ -93,7 +93,8 @@ public class GlobalProperties {
                 key = keys.nextElement();
                 String[] patterns = entry.getValue().getString(key).split(";");
                 for (String pattern : patterns) {
-                    Matcher matcher = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE).matcher(message.getText());
+                    Matcher matcher = Pattern.compile(pattern,
+                            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(message.getText());
                     if (matcher.find()) {
                         Matcher namedGroups = Pattern.compile("\\(\\?<([a-zA-Z][a-zA-Z0-9]*)>").matcher(pattern);
                         while (namedGroups.find()) {
@@ -124,7 +125,7 @@ public class GlobalProperties {
             String[] messages = exceptionMessages.get(locale).getString(message).split(";");
             return messages[(int) (Math.random() * (Arrays.stream(messages).count() - 1))];
         } else {
-            return "Localized message not found for: " + message;
+            return "Localized exception not found for: " + message;
         }
     }
 

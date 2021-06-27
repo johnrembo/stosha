@@ -1,5 +1,6 @@
 package ru.rembo.bot.telegram.holdem;
 
+import com.fasterxml.jackson.databind.deser.DataFormatReaders;
 import ru.rembo.bot.telegram.GlobalProperties;
 import ru.rembo.bot.telegram.statemachine.AbstractActionMap;
 import ru.rembo.bot.telegram.statemachine.AbstractTransition;
@@ -9,6 +10,8 @@ import ru.rembo.bot.telegram.statemachine.Behaviour;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Player extends Dealer<PlayerState> {
     private final Stack stack = new Stack();
@@ -63,6 +66,7 @@ public class Player extends Dealer<PlayerState> {
         actionMap.put(new PlayerTransition(PlayerState.BIG_BLIND, PlayerState.BETTING), this::bet);
         actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.IN_TURN), this::inTurn);
         actionMap.put(new PlayerTransition(PlayerState.IN_TURN, PlayerState.BETTING), this::bet);
+        actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.BETTING), this::bet);
         actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.IN_LINE), this::accept);
         actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.ALL_IN), this::accept);
         actionMap.put(new PlayerTransition(PlayerState.IN_TURN, PlayerState.FOLDED), this::fold);
@@ -117,14 +121,24 @@ public class Player extends Dealer<PlayerState> {
         return id;
     }
 
-    public String getAndClearGlobalMessage() {
+    public String getAndClearGlobalMessage(Object... args) {
+        Matcher matcher = Pattern.compile("player\\.\\w+").matcher(globalMessage);
         String string = globalMessage;
+        if (matcher.find()) {
+            string = String.format(string.replace(matcher.group()
+                    , GlobalProperties.getRandomOutput(matcher.group(), locale)), args);
+        }
         globalMessage = "";
         return string;
     }
 
-    public String getAndClearPrivateMessage() {
+    public String getAndClearPrivateMessage(Object... args) {
+        Matcher matcher = Pattern.compile("player\\.\\w+").matcher(privateMessage);
         String string = privateMessage;
+        if (matcher.find()) {
+            string = String.format(string.replace(matcher.group()
+                    , GlobalProperties.getRandomOutput(matcher.group(), locale)), args);
+        }
         privateMessage = "";
         return string;
     }
@@ -218,29 +232,33 @@ public class Player extends Dealer<PlayerState> {
     }
 
     private void acceptSmallBlind() {
-        globalMessage = GlobalProperties.getRandomOutput("player.acceptSmallBlind", locale);
+        globalMessage = "player.acceptSmallBlind";
         System.out.println(name + " is on small blind");
     }
 
     private void acceptBigBlind() {
-        globalMessage = GlobalProperties.getRandomOutput("player.acceptBigBlind", locale);
+        globalMessage ="player.acceptBigBlind";
         System.out.println(name + " is on big blind");
     }
 
     private void inTurn() {
+        globalMessage = "player.inTurn";
         System.out.println("It is now " + name + "'s turn");
     }
 
     private void bet() {
-        this.lastBet = stack.getPart(betSum);
+        lastBet = stack.getPart(betSum);
+        globalMessage = lastBet.toString();
         System.out.println(name +  ((betSum == 0) ? " checks" : " bets " + betSum));
     }
 
     private void showDownOptional() {
+        globalMessage = "player.showDownOptional";
         System.out.println(name + " can show or hide hand");
     }
 
     private void showDown() {
+        globalMessage = "player.showDown";
         System.out.println(name + " should showdown or discard");
     }
 
@@ -270,6 +288,7 @@ public class Player extends Dealer<PlayerState> {
         discarded.clear();
         discarded.addAll(hand);
         hand.clear();
+        globalMessage = "player.fold";
     }
 
     private void takeHand() {

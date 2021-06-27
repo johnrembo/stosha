@@ -28,8 +28,6 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
 
     private final HashMap<Long, Game> games = new HashMap<>();
     private final HashMap<Long, AbstractEventMap<HoldemEvent, HoldemCommand>> eventMaps = new HashMap<>();
-    private SendMessage privateAnswer = new SendMessage();
-    private SendMessage globalAnswer = new SendMessage();
     private Message message;
     private HoldemParsedEvent parsedEvent;
 
@@ -78,6 +76,15 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                             put(HoldemEvent.GIVE_DECK, games.get(message.getChatId())::doGiveDeck);
                             put(HoldemEvent.SHUFFLE_DECK, games.get(message.getChatId())::doShuffle);
                             put(HoldemEvent.DEAL, games.get(message.getChatId())::doDeal);
+                            put(HoldemEvent.BET, games.get(message.getChatId())::doBet);
+                            put(HoldemEvent.CHECK, games.get(message.getChatId())::doCheck);
+                            put(HoldemEvent.CALL, games.get(message.getChatId())::doCall);
+                            put(HoldemEvent.RAISE, games.get(message.getChatId())::doRaise);
+                            put(HoldemEvent.FOLD, games.get(message.getChatId())::doFold);
+                            put(HoldemEvent.ALL_IN, games.get(message.getChatId())::doAllIn);
+                            put(HoldemEvent.SHOW_FLOP, games.get(message.getChatId())::doShowFlop);
+                            put(HoldemEvent.SHOW_TURN, games.get(message.getChatId())::doShowTurn);
+                            put(HoldemEvent.SHOW_RIVER, games.get(message.getChatId())::doShowRiver);
                         }
                     };
                     eventMaps.put(message.getChatId(), eventMap);
@@ -149,6 +156,9 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                     Player player = new Player(parsedEvent.getId(), parsedEvent.getName(), parsedEvent.getLocale());
                     games.get(message.getChatId()).getTable().addPlayer(player);
                 }
+                if (HoldemEvent.requireRound().contains(parsedEvent.getEvent())
+                        && (games.get(message.getChatId()).roundNotStarted()))
+                    throw new RuleViolationException("Round is not stared");
                 eventMaps.get(message.getChatId()).get(parsedEvent.getEvent()).run();
             } catch (BadStateException e) {
                 throw new BadStateException(String.format(e.getLocalizedMessage(parsedEvent.getLocale())
