@@ -102,7 +102,7 @@ public class GlobalProperties {
                         }
                         args.put("0", matcher.group());
                         for (int i = 0; i < matcher.groupCount(); i++) {
-                            if (!matcher.group(i).isEmpty()) {
+                            if (matcher.group(i) != null) {
                                 args.put(String.valueOf(i), matcher.group(i));
                             }
                         }

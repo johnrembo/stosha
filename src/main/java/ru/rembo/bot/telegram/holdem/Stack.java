@@ -1,5 +1,7 @@
 package ru.rembo.bot.telegram.holdem;
 
+import ru.rembo.bot.telegram.statemachine.BadStateException;
+
 import java.util.*;
 
 public class Stack extends ArrayList<Chip> {
@@ -64,9 +66,9 @@ public class Stack extends ArrayList<Chip> {
             }
         }
         if ((remain > 0) && !remainingChips.isEmpty()) {
-            throw new BadConditionException("No chips for remaining " + remain + ", ask exchange");
+            throw new RuleViolationException("STACK_NO_CHANGE", remain);
         } else if (remain > 0) {
-            throw new BadConditionException("Not enough chips for sum " + sum);
+            throw new RuleViolationException("STACK_EMPTY", sum);
         }
         return part;
     }

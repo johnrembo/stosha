@@ -17,7 +17,13 @@ public class Round  extends AbstractActor<RoundState> {
     private Player lead;
     private Player currentPlayer;
     private Action lastAction;
+
     private Combo combo;
+    private final HashMap<Player, Stack> choppedPot = new HashMap<>();
+
+    public HashMap<Player, Stack> getChoppedPot() {
+        return choppedPot;
+    }
 
     public static class RoundTransition extends AbstractTransition<RoundState> {
         RoundTransition(RoundState before, RoundState after) {
@@ -77,6 +83,10 @@ public class Round  extends AbstractActor<RoundState> {
         actionMap.put(new RoundTransition(RoundState.RANK, RoundState.CHOP_THE_POT), this::chopThePot);
         actionMap.put(new RoundTransition(RoundState.HIDDEN_RANK, RoundState.CHOP_THE_POT), this::chopThePot);
         initActions(actionMap);
+    }
+
+    public Combo getCombo() {
+        return combo;
     }
 
     public Collection<Card> getSharedCards() {
@@ -157,8 +167,14 @@ public class Round  extends AbstractActor<RoundState> {
         int winSum = (splitPot.getSum() - remain) / winners.size();
         if (winSum > 0) {
             for (Map.Entry<Player, Combo> winner : winners.entrySet()) {
-                winner.getKey().takeChips(withdrawWithChange(splitPot, winSum));
+                Stack stack = new Stack(withdrawWithChange(splitPot, winSum));
+                winner.getKey().takeChips(stack);
                 System.out.println(potType + " pot " + winSum + " goes to " + winner.getKey().getName());
+                if (choppedPot.containsKey(winner.getKey())) {
+                    choppedPot.get(winner.getKey()).addAll(stack);
+                } else {
+                    choppedPot.put(winner.getKey(), stack);
+                }
             }
         }
         return splitPot;
@@ -278,14 +294,17 @@ public class Round  extends AbstractActor<RoundState> {
             roundBets.put(currentPlayer, new Stack());
         }
         int betSum = roundBets.get(currentPlayer).getSum() + part.getSum();
-        if (getState().equals(RoundState.SMALL_BLIND)) callAmount = game.getSmallBlindAmount();
-        if (getState().equals(RoundState.BIG_BLIND)) callAmount = game.getBigBlindAmount();
+        if (getState().equals(RoundState.SMALL_BLIND) && (part.getSum() != game.getSmallBlindAmount()))
+            throw new RuleViolationException("SMALL_BLIND", game.getSmallBlindAmount());
+/* debug
+        if (getState().equals(RoundState.BIG_BLIND) && (part.getSum() != game.getBigBlindAmount()))
+            throw new RuleViolationException("BIG_BLIND", game.getBigBlindAmount());
+*/
         if (currentPlayer.getStackSum() != part.getSum() /* TODO add and rules allow low all ins*/) {
-            if (betSum < callAmount) throw new RuleViolationException("Cannot take bet less than "
-                    + (callAmount - roundBets.get(currentPlayer).getSum()));
+            if (betSum < callAmount) throw new RuleViolationException("CALL_AMOUNT"
+                    , (callAmount - roundBets.get(currentPlayer).getSum()));
             if ((betSum > callAmount) && (betSum - callAmount < raiseAmount) /* TODO add and rules restrict small raise*/)
-                throw new RuleViolationException("Cannot raise bet by less than " + raiseAmount);
-
+                throw new RuleViolationException("RAISE_AMOUNT", raiseAmount);
         }
         if (betSum > callAmount) {
             if (raiseAmount == 0) {

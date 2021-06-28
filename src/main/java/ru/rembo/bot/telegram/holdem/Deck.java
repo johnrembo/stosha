@@ -84,19 +84,19 @@ public class Deck extends AbstractActor<DeckState> {
 
     private void restore() {
         cards.addAll(discarded);
-        if (cards.size() != 52) throw new RuleViolationException("Deck is not full");
+        if (cards.size() != 52) throw new RuleViolationException("DECK_INCOMPLETE");
         discarded.clear();
     }
 
     private void shuffle() {
-        if (cards.size() != 52) throw new RuleViolationException("Deck is not full");
+        if (cards.size() != 52) throw new RuleViolationException("DECK_INCOMPLETE");
         List<Card> deck = new ArrayList<>(cards);
         Collections.shuffle(deck);
         cards = new LinkedHashSet<>(deck);
     }
 
     private void pullCard() {
-        if (cards.isEmpty()) throw new BadConditionException("Deck is empty");
+        if (cards.isEmpty()) throw new BadConditionException("DECK_EMPTY");
         this.card = cards.iterator().next();
         cards.remove(this.card);
     }

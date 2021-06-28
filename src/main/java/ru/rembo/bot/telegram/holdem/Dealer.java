@@ -66,10 +66,6 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
         return playedDeck;
     }
 
-    protected void takeDeck() {
-        System.out.println(getName() + " takes deck (" + deck.size() + "): " + deck);
-    }
-
     protected void shuffleDeck() {
         System.out.println(getName() + " shuffles the deck");
         deck.actTo(DeckState.SHUFFLED);

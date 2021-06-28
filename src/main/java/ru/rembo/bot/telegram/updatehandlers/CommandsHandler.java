@@ -8,9 +8,12 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.rembo.bot.telegram.GlobalProperties;
+import ru.rembo.bot.telegram.holdem.BadConditionException;
+import ru.rembo.bot.telegram.holdem.RuleViolationException;
 import ru.rembo.bot.telegram.statemachine.BadStateException;
 import ru.rembo.bot.telegram.statemachine.EventHandler;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -75,7 +78,7 @@ public class CommandsHandler extends CacheCommandBot {
                 } catch (TelegramApiException e) {
                     GlobalLogger.warning(e.getLocalizedMessage(), e);
                 }
-            } else if (message.getChat().getType().equals("group")) {
+            } else if (message.getChat().getType().equals("group") || message.getChat().getType().equals("supergroup")) {
                 Collection<EventHandler<Message, SendMessage>> handlers = getRegisteredEventHandlers();
                 for (EventHandler<Message, SendMessage> handler : handlers) {
                     if (handler.handles(message)) {
@@ -91,17 +94,20 @@ public class CommandsHandler extends CacheCommandBot {
                                 execute(sendMessage);
                             }
                             handler.clearBulkAnswer(message);
-                        } catch (BadStateException e) {
+                        } catch (RuntimeException e) {
                             SendMessage errorAnswer = new SendMessage();
                             errorAnswer.setChatId(message.getChatId().toString());
                             errorAnswer.setText(e.getMessage());
+                            GlobalLogger.finer(Arrays.toString(e.getStackTrace()));
                             try {
                                 execute(errorAnswer);
                             } catch (TelegramApiException ex) {
                                 GlobalLogger.warning(e.getLocalizedMessage(), e);
+                                GlobalLogger.finer(Arrays.toString(e.getStackTrace()));
                             }
                         } catch (TelegramApiException e) {
                             GlobalLogger.warning(e.getLocalizedMessage(), e);
+                            GlobalLogger.finer(Arrays.toString(e.getStackTrace()));
                         }
                     }
                 }

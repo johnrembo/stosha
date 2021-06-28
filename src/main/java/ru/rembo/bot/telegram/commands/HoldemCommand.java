@@ -32,7 +32,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
     private HoldemParsedEvent parsedEvent;
 
     public HoldemCommand() {
-        super("holdem", "Control Texas Hold'em croupier mode");
+        super("holdem", "control Texas Hold'em croupier mode");
     }
 
     @Override
@@ -58,7 +58,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                 smallBlind = Integer.parseInt(startMatcher.group("small"));
                 bigBlind = Integer.parseInt(startMatcher.group("big"));
             }
-            if (!message.getChat().getType().equals("group")) {
+            if (!message.getChat().getType().equals("group") && !message.getChat().getType().equals("supergroup")) {
                 answerText = "/" + getCommand() + " can be used only in group chats";
             } else {
                 if (games.containsKey(message.getChatId())) {
@@ -85,6 +85,9 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                             put(HoldemEvent.SHOW_FLOP, games.get(message.getChatId())::doShowFlop);
                             put(HoldemEvent.SHOW_TURN, games.get(message.getChatId())::doShowTurn);
                             put(HoldemEvent.SHOW_RIVER, games.get(message.getChatId())::doShowRiver);
+                            put(HoldemEvent.RANK, games.get(message.getChatId())::doRank);
+                            put(HoldemEvent.HIDDEN_RANK, games.get(message.getChatId())::doHiddenRank);
+                            put(HoldemEvent.DISCARD, games.get(message.getChatId())::doDiscard);
                         }
                     };
                     eventMaps.put(message.getChatId(), eventMap);
@@ -158,11 +161,14 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                 }
                 if (HoldemEvent.requireRound().contains(parsedEvent.getEvent())
                         && (games.get(message.getChatId()).roundNotStarted()))
-                    throw new RuleViolationException("Round is not stared");
+                    throw new RuleViolationException("ROUND_NOT_STARTED");
                 eventMaps.get(message.getChatId()).get(parsedEvent.getEvent()).run();
             } catch (BadStateException e) {
-                throw new BadStateException(String.format(e.getLocalizedMessage(parsedEvent.getLocale())
-                        , message.getFrom().getFirstName()));
+                throw new RuntimeException(e.getLocalizedMessage(parsedEvent.getLocale(), message.getFrom().getFirstName()), e);
+            } catch (RuleViolationException e) {
+                throw new RuntimeException(e.getLocalizedMessage(parsedEvent.getLocale()), e);
+            } catch (BadConditionException e) {
+                throw new RuntimeException(e.getMessage(), e);
             }
         }
     }

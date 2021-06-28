@@ -3,7 +3,6 @@ package ru.rembo.bot.telegram.holdem;
 import ru.rembo.bot.telegram.GlobalProperties;
 import ru.rembo.bot.telegram.statemachine.BadStateException;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 
@@ -48,11 +47,6 @@ public class Game {
         return casino.getSmallestChip();
     }
 
-    public void giveDeck(Player dealer, Deck deck) {
-        dealer.actTo(PlayerState.DEALER, deck);
-        table.setDealer(dealer);
-    }
-
     public void nextStage(RoundState lastState, Player player, StringBuilder builder) {
         if (table.challengerCount() == 1) {
             System.out.println("We have a winner");
@@ -88,51 +82,26 @@ public class Game {
 
     }
 
-    public void doRank(Player player) {
-        player.actTo(PlayerState.RANKED);
-        round.actTo(RoundState.RANK, player);
-        collectCards(player.getOpenHand());
-        player.actTo(PlayerState.SPECTATOR);
-        if (table.getNextActivePlayerFrom(player).getState().equals(PlayerState.SPECTATOR)) {
-            endRound();
-        } else {
-            round.actTo(RoundState.SHOWDOWN);
-            table.getNextActivePlayerFrom(player).actTo(PlayerState.SHOWDOWN);
-        }
-    }
-
-    public void doHiddenRank(Player player) {
-        player.actTo(PlayerState.RANKED_HIDDEN);
-        round.actTo(RoundState.HIDDEN_RANK, player);
-        collectCards(player.getOpenHand());
-        player.actTo(PlayerState.SPECTATOR);
-        endRound();
-    }
-
-
-    public void doDiscard(Player player) {
-        player.actTo(PlayerState.SPECTATOR);
-        collectCards(player.getDiscarded());
-        if (table.getNextActivePlayerFrom(player).getState().equals(PlayerState.SPECTATOR)) {
-            endRound();
-        } else {
-            table.getNextActivePlayerFrom(player).actTo(PlayerState.SHOWDOWN);
-        }
-    }
-
     private void collectCards(Collection<Card> cards) {
         PlayerState lastState = table.getDealer().getState();
         table.getDealer().actTo(PlayerState.COLLECT_CARDS, cards);
         table.getDealer().actTo(lastState);
     }
 
-    private void endRound() {
+    private void endRound(StringBuilder builder) {
         collectCards(round.getSharedCards());
         round.actTo(RoundState.CHOP_THE_POT);
+        String chopMessage = GlobalProperties.getRandomOutput("game.chopThePot"
+                , GlobalProperties.defaultLocale);
+        round.getChoppedPot().forEach((player, chips) -> builder.append("\n")
+                .append(String.format(chopMessage, chips.toString(), player.getName(), player.getStack().toString())));
+        table.stream().filter(Player::canPlay).forEach(player ->
+                bulkResult.put(player.getId(), player.getStack().toString()));
+
         table.getDealer().actTo(PlayerState.RETURN_DECK);
         table.getDealer().actTo(PlayerState.SPECTATOR);
         table.stream().filter(Player::isEmpty).forEach(player -> player.actTo(PlayerState.OUT_OF_CHIPS));
-        giveDeck(table.getNextPlayerFrom(table.getDealer(), Player::isSpectating), table.getDealer().getPlayedDeck());
+        passDeck(table.getNextPlayerFrom(table.getDealer(), Player::isSpectating), table.getDealer().getPlayedDeck());
     }
 
     public void doShowCard(Player dealer) {
@@ -140,32 +109,86 @@ public class Game {
         dealer.actTo(PlayerState.SHUFFLED);
     }
 
+    public void doRank() {
+        Player player = table.getById(parsedEvent.getId());
+        Player nextPlayer = table.getNextPlayingFrom(player);
+        StringBuilder builder = new StringBuilder();
+        player.actTo(PlayerState.RANKED);
+        round.actTo(RoundState.RANK, player);
+        builder.append(parsedEvent.getOutputString(player.getName(), player.getOpenHand()
+                , round.getCombo().name, round.getCombo().hand, round.getCombo().highCard, round.getCombo().rank));
+        collectCards(player.getOpenHand());
+        player.actTo(PlayerState.SPECTATOR);
+        if (nextPlayer.getState().equals(PlayerState.SPECTATOR)) {
+            endRound(builder);
+        } else {
+            round.actTo(RoundState.SHOWDOWN);
+            nextPlayer.actTo(PlayerState.SHOWDOWN);
+            builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
+        }
+        globalResult = builder.toString();
+    }
+
+    public void doHiddenRank() {
+        Player player = table.getById(parsedEvent.getId());
+        StringBuilder builder = new StringBuilder();
+        player.actTo(PlayerState.RANKED_HIDDEN);
+        round.actTo(RoundState.HIDDEN_RANK, player);
+        builder.append(parsedEvent.getOutputString(player.getName()));
+        collectCards(player.getOpenHand());
+        player.actTo(PlayerState.SPECTATOR);
+        endRound(builder);
+        globalResult = builder.toString();
+    }
+
+
+    public void doDiscard() {
+        Player player = table.getById(parsedEvent.getId());
+        Player nextPlayer = table.getNextPlayingFrom(player);
+        StringBuilder builder = new StringBuilder();
+        player.actTo(PlayerState.SPECTATOR);
+        builder.append(parsedEvent.getOutputString(player.getName()));
+        collectCards(player.getDiscarded());
+        if (nextPlayer.getState().equals(PlayerState.SPECTATOR)) {
+            endRound(builder);
+        } else {
+            nextPlayer.actTo(PlayerState.SHOWDOWN);
+            builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
+        }
+        globalResult = builder.toString();
+    }
+
     public void doShowFlop() {
         Player dealer = table.getById(parsedEvent.getId());
+        Player nextPlayer = table.getNextPlayingFrom(dealer);
         dealer.actTo(PlayerState.IN_LINE);
         round.actTo(RoundState.FLOP, dealer.getFlop());
-        table.getNextPlayingFrom(dealer).actTo(PlayerState.IN_TURN);
-        globalResult = parsedEvent.getOutputString(round.getSharedCards());
+        nextPlayer.actTo(PlayerState.IN_TURN);
+        globalResult = parsedEvent.getOutputString(round.getSharedCards())
+                + "\n" + nextPlayer.getAndClearGlobalMessage(nextPlayer.getName());
     }
 
     public void doShowTurn() {
         Player dealer = table.getById(parsedEvent.getId());
+        Player nextPlayer = table.getNextPlayingFrom(dealer);
         dealer.actTo(PlayerState.IN_LINE);
         round.actTo(RoundState.TURN, dealer.getTurn());
-        table.getNextPlayingFrom(dealer).actTo(PlayerState.IN_TURN);
-        globalResult = parsedEvent.getOutputString(round.getSharedCards());
+        nextPlayer.actTo(PlayerState.IN_TURN);
+        globalResult = parsedEvent.getOutputString(round.getSharedCards())
+                + "\n" + nextPlayer.getAndClearGlobalMessage(nextPlayer.getName());
     }
 
     public void doShowRiver() {
         Player dealer = table.getById(parsedEvent.getId());
+        Player nextPlayer = table.getNextPlayingFrom(dealer);
         dealer.actTo(PlayerState.IN_LINE);
         round.actTo(RoundState.RIVER, dealer.getRiver());
-        table.getNextPlayingFrom(dealer).actTo(PlayerState.IN_TURN);
-        globalResult = parsedEvent.getOutputString(round.getSharedCards());
+        nextPlayer.actTo(PlayerState.IN_TURN);
+        globalResult = parsedEvent.getOutputString(round.getSharedCards())
+                + "\n" + nextPlayer.getAndClearGlobalMessage(nextPlayer.getName());
     }
 
     public void doFold() {
-        if (round == null) throw new RuleViolationException("Round is not started");
         RoundState lastState = round.getState();
         Player player = table.getById(parsedEvent.getId());
         StringBuilder builder = new StringBuilder();
@@ -192,7 +215,7 @@ public class Game {
     }
 
     public void doRaise() {
-        bet(table.getById(parsedEvent.getId()), round.getCallAmount() - round.getPlayerStackSum(table.getById(parsedEvent.getId())) + round.getRaiseAmount());
+        bet(table.getById(parsedEvent.getId()), round.getCallAmount() - round.getPlayerStackSum(table.getById(parsedEvent.getId())) + Integer.parseInt(parsedEvent.getArgs().get("sum")));
     }
     public void doAllIn() {
         bet(table.getById(parsedEvent.getId()), table.getById(parsedEvent.getId()).getStackSum());
@@ -204,31 +227,39 @@ public class Game {
 
     private void bet(Player player, int betSum) {
         RoundState lastState = round.getState();
+        PlayerState lastPlayerState = player.getState();
         player.actTo(PlayerState.BETTING, betSum);
-        round.actTo(RoundState.TAKE_BET, player);
-        StringBuilder builder = new StringBuilder();
-        builder.append(parsedEvent.getOutputString(player.getName(), betSum, round.getCallAmount()
-                , round.getRaiseAmount(), round.getLastAction()))
-                .append("\n").append(player.getAndClearGlobalMessage());
-        player.actTo((player.getStackSum() == betSum) ? PlayerState.ALL_IN : PlayerState.IN_LINE);
-        Player nextPlayer = table.getNextPlayingFrom(player);
-        if (Action.stoppers().contains(round.getLastAction()) && (player.equals(round.getLead())
-                || (table.getNextPlayingFrom(player).equals(round.getLead()) && !round.getLead().canAct()))) {
-            nextStage(lastState, player, builder);
-        } else if (lastState.equals(RoundState.SMALL_BLIND)) {
-            round.actTo(RoundState.BIG_BLIND, player);
-            nextPlayer.actTo(PlayerState.BIG_BLIND);
-            builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
-        } else if (lastState.equals(RoundState.BIG_BLIND)) {
-            round.actTo(RoundState.PREFLOP, player);
-            nextPlayer.actTo(PlayerState.IN_TURN);
-            builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
-        } else {
-            round.actTo(lastState, player);
-            nextPlayer.actTo(PlayerState.IN_TURN);
-            builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
+        try {
+            round.actTo(RoundState.TAKE_BET, player);
+            StringBuilder builder = new StringBuilder();
+            builder.append(parsedEvent.getOutputString(player.getName(), betSum, round.getCallAmount()
+                    , round.getRaiseAmount(), round.getLastAction()))
+                    .append("\n").append(player.getAndClearGlobalMessage());
+            player.actTo((player.getStackSum() == betSum) ? PlayerState.ALL_IN : PlayerState.IN_LINE);
+            Player nextPlayer = table.getNextPlayingFrom(player);
+            if (Action.stoppers().contains(round.getLastAction()) && (player.equals(round.getLead())
+                    || (table.getNextPlayingFrom(player).equals(round.getLead()) && !round.getLead().canAct()))) {
+                nextStage(lastState, player, builder);
+            } else if (lastState.equals(RoundState.SMALL_BLIND)) {
+                round.actTo(RoundState.BIG_BLIND, player);
+                nextPlayer.actTo(PlayerState.BIG_BLIND);
+                builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
+            } else if (lastState.equals(RoundState.BIG_BLIND)) {
+                round.actTo(RoundState.PREFLOP, player);
+                nextPlayer.actTo(PlayerState.IN_TURN);
+                builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
+            } else {
+                round.actTo(lastState, player);
+                nextPlayer.actTo(PlayerState.IN_TURN);
+                builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
+            }
+            globalResult = builder.toString();
+        } catch (RuleViolationException e) {
+            //round.actTo(lastState, player);
+            player.actTo(lastPlayerState);
+//            player.actTo(PlayerState.IN_TURN);
+            throw e;
         }
-        globalResult = builder.toString();
     }
 
     public void doDeal() {
@@ -252,7 +283,14 @@ public class Game {
         globalResult = parsedEvent.getOutputString(parsedEvent.getName());
     }
 
+    public void passDeck(Player dealer, Deck deck) {
+        dealer.actTo(PlayerState.DEALER, deck);
+        table.setDealer(dealer);
+        globalResult = dealer.getAndClearGlobalMessage(dealer.getName());
+    }
+
     public void doGiveDeck() {
+        if (table.getDealer() != null) throw new RuleViolationException("DEALER_SET");
         table.getById(parsedEvent.getId()).actTo(PlayerState.DEALER, deck);
         table.setDealer(table.getById(parsedEvent.getId()));
         globalResult = parsedEvent.getOutputString(parsedEvent.getName());

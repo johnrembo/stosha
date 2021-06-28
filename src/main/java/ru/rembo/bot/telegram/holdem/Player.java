@@ -1,6 +1,5 @@
 package ru.rembo.bot.telegram.holdem;
 
-import com.fasterxml.jackson.databind.deser.DataFormatReaders;
 import ru.rembo.bot.telegram.GlobalProperties;
 import ru.rembo.bot.telegram.statemachine.AbstractActionMap;
 import ru.rembo.bot.telegram.statemachine.AbstractTransition;
@@ -64,15 +63,18 @@ public class Player extends Dealer<PlayerState> {
         actionMap.put(new PlayerTransition(PlayerState.SMALL_BLIND, PlayerState.BETTING), this::bet);
         actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.BIG_BLIND), this::acceptBigBlind);
         actionMap.put(new PlayerTransition(PlayerState.BIG_BLIND, PlayerState.BETTING), this::bet);
+
+//        actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.BETTING), this::bet); // debug
+//        actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.BIG_BLIND), this::bet); // debug
+
         actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.IN_TURN), this::inTurn);
         actionMap.put(new PlayerTransition(PlayerState.IN_TURN, PlayerState.BETTING), this::bet);
-        actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.BETTING), this::bet);
         actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.IN_LINE), this::accept);
         actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.ALL_IN), this::accept);
         actionMap.put(new PlayerTransition(PlayerState.IN_TURN, PlayerState.FOLDED), this::fold);
-        actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.SHOW_FLOP), this::accept);
-        actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.SHOW_TURN), this::accept);
-        actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.SHOW_RIVER), this::accept);
+        actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.SHOW_FLOP), this::acceptFlop);
+        actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.SHOW_TURN), this::acceptTurn);
+        actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.SHOW_RIVER), this::acceptRiver);
         actionMap.put(new PlayerTransition(PlayerState.ALL_IN, PlayerState.SHOW_FLOP), this::accept);
         actionMap.put(new PlayerTransition(PlayerState.ALL_IN, PlayerState.SHOW_TURN), this::accept);
         actionMap.put(new PlayerTransition(PlayerState.ALL_IN, PlayerState.SHOW_RIVER), this::accept);
@@ -84,6 +86,7 @@ public class Player extends Dealer<PlayerState> {
         actionMap.put(new PlayerTransition(PlayerState.ALL_IN, PlayerState.SHOWDOWN), this::showDown);
         actionMap.put(new PlayerTransition(PlayerState.SHOWDOWN, PlayerState.RANKED), this::openHand);
         actionMap.put(new PlayerTransition(PlayerState.ALL_IN, PlayerState.RANKED), this::openHand);
+        actionMap.put(new PlayerTransition(PlayerState.OPTIONAL_SHOWDOWN, PlayerState.RANKED), this::openHand);
         actionMap.put(new PlayerTransition(PlayerState.OPTIONAL_SHOWDOWN, PlayerState.RANKED_HIDDEN), this::hideHand);
         actionMap.put(new PlayerTransition(PlayerState.SHOWDOWN, PlayerState.SPECTATOR), this::discardHand);
         actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.COLLECT_CARDS), this::collectCards);
@@ -149,6 +152,10 @@ public class Player extends Dealer<PlayerState> {
 
     public int getStackSum() {
         return stack.getSum();
+    }
+
+    public Stack getStack() {
+        return stack;
     }
 
     public void actTo(PlayerState newState, int betSum) {
@@ -231,6 +238,18 @@ public class Player extends Dealer<PlayerState> {
         return PlayerState.challenging().contains(getState());
     }
 
+    private void acceptFlop() {
+        globalMessage = "player.acceptFlop";
+    }
+
+    private void acceptTurn() {
+        globalMessage = "player.acceptTurn";
+    }
+
+    private void acceptRiver() {
+        globalMessage = "player.acceptRiver";
+    }
+
     private void acceptSmallBlind() {
         globalMessage = "player.acceptSmallBlind";
         System.out.println(name + " is on small blind");
@@ -240,6 +259,12 @@ public class Player extends Dealer<PlayerState> {
         globalMessage ="player.acceptBigBlind";
         System.out.println(name + " is on big blind");
     }
+
+    protected void takeDeck() {
+        globalMessage = "player.takeDeck";
+        System.out.println(getName() + " takes deck (" + deck.size() + "): " + deck);
+    }
+
 
     private void inTurn() {
         globalMessage = "player.inTurn";

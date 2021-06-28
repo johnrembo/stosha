@@ -8,14 +8,15 @@ public class Table extends ArrayList<Player> {
 
     private static final int MAX_PLAYERS = 8;
     private final HashMap<Integer, Integer> playersById = new HashMap<>();
-    private int dealer;
+    private int dealer = -1;
 
     public Table() {
         super();
     }
 
     public Player getDealer() {
-        return get(this.dealer);
+        if ((dealer < 0) || (dealer >= size())) return null;
+        return get(dealer);
     }
 
     public void setDealer(Player dealer) {
@@ -64,9 +65,9 @@ public class Table extends ArrayList<Player> {
     }
     public void addPlayer(Player player) {
         if (size() == MAX_PLAYERS)
-            throw new BadConditionException("Maximum number of players (" + MAX_PLAYERS + ") reached");
+            throw new RuleViolationException("MAX_PLAYERS", MAX_PLAYERS);
         if (this.contains(player))
-            throw new RuleViolationException(player.getName() + " is already on table");
+            throw new RuleViolationException("PLAYER_EXISTS", player.getName());
         add(player);
         playersById.put(player.getId(), indexOf(player));
         System.out.println(player.getName() + " joins table");

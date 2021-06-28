@@ -19,7 +19,10 @@ public enum HoldemEvent {
     ALL_IN,
     SHOW_FLOP,
     SHOW_TURN,
-    SHOW_RIVER;
+    SHOW_RIVER,
+    RANK,
+    HIDDEN_RANK,
+    DISCARD;
 
     public static EnumSet<HoldemEvent> requireRound() {
         return EnumSet.of(BET, CHECK, CALL, RAISE, FOLD, ALL_IN, SHOW_FLOP, SHOW_TURN, SHOW_RIVER);

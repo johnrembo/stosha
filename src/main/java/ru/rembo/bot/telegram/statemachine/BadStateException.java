@@ -6,28 +6,26 @@ import java.util.Locale;
 
 public class BadStateException extends RuntimeException {
 
-    private Object after;
-    private Object before;
-
-    public BadStateException(String message) {
-        super(message);
-    }
+    Object[] args;
 
     public <T extends Enum<T>> BadStateException(T before, T after) {
         super(before.toString() + "->" + after.toString());
-        this.before = before;
-        this.after = after;
     }
 
-    public Object getBefore() {
-        return before;
+    public BadStateException(String message, Object... args) {
+        super(message);
+        this.args = args;
     }
 
-    public Object getAfter() {
-        return after;
+    public String getLocalizedMessage(Locale locale, Object... args) {
+        return String.format(GlobalProperties.getRandomException(super.getMessage(), locale), args);
     }
 
     public String getLocalizedMessage(Locale locale) {
-        return GlobalProperties.getRandomException(super.getMessage(), locale);
+        return String.format(GlobalProperties.getRandomException(super.getMessage(), locale), args);
+    }
+
+    public String getLocalizedMessage() {
+        return String.format(GlobalProperties.getRandomException(super.getMessage(), GlobalProperties.defaultLocale), args);
     }
 }
