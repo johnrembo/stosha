@@ -10,7 +10,6 @@ import java.util.LinkedHashSet;
 public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
     protected String name;
     protected Deck deck;
-    protected Game game;
     private Table table;
     private final LinkedHashSet<Card> flop = new LinkedHashSet<>();
     private Card turn;
@@ -37,11 +36,6 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
     }
     public void actTo(T state, Deck deck) {
         this.deck = deck;
-        actTo(state);
-    }
-
-    public void actTo(T state, Game game) {
-        this.game = game;
         actTo(state);
     }
 
@@ -144,5 +138,9 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
         burn.add(deck.getCard());
         deck.actTo(DeckState.DISCARD, burn);
         deck.actTo(DeckState.FULL);
+    }
+
+    public Card getShowCard() {
+        return deck.getCard();
     }
 }

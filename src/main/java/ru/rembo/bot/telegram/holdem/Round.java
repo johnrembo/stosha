@@ -296,10 +296,8 @@ public class Round  extends AbstractActor<RoundState> {
         int betSum = roundBets.get(currentPlayer).getSum() + part.getSum();
         if (getState().equals(RoundState.SMALL_BLIND) && (part.getSum() != game.getSmallBlindAmount()))
             throw new RuleViolationException("SMALL_BLIND", game.getSmallBlindAmount());
-/* debug
         if (getState().equals(RoundState.BIG_BLIND) && (part.getSum() != game.getBigBlindAmount()))
             throw new RuleViolationException("BIG_BLIND", game.getBigBlindAmount());
-*/
         if (currentPlayer.getStackSum() != part.getSum() /* TODO add and rules allow low all ins*/) {
             if (betSum < callAmount) throw new RuleViolationException("CALL_AMOUNT"
                     , (callAmount - roundBets.get(currentPlayer).getSum()));

@@ -32,7 +32,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
     private HoldemParsedEvent parsedEvent;
 
     public HoldemCommand() {
-        super("holdem", "control Texas Hold'em croupier mode");
+        super("holdem", "control Texas Hold'em croupier mode v 1.0 alfa");
     }
 
     @Override
@@ -64,10 +64,11 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                 if (games.containsKey(message.getChatId())) {
                     answerText = "Game for " + message.getChat().getTitle() + " already started";
                 } else {
-                    games.put(message.getChatId(), new Game(message.getChatId(), message.getChat().getTitle()));
+                    games.put(message.getChatId(), new Game(message.getChat().getTitle()));
                     AbstractEventMap<HoldemEvent, HoldemCommand> eventMap = new AbstractEventMap<HoldemEvent, HoldemCommand>() {
                         @Override
                         public void initEventMap(HoldemCommand handler) {
+                            put(HoldemEvent.HELP, games.get(message.getChatId())::doShowHelp);
                             put(HoldemEvent.NEW_PLAYER, games.get(message.getChatId())::doCreate);
                             put(HoldemEvent.JOIN_PLAYER, games.get(message.getChatId())::doJoin);
                             put(HoldemEvent.BUY_CHIPS, games.get(message.getChatId())::doByChips);
@@ -88,6 +89,9 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                             put(HoldemEvent.RANK, games.get(message.getChatId())::doRank);
                             put(HoldemEvent.HIDDEN_RANK, games.get(message.getChatId())::doHiddenRank);
                             put(HoldemEvent.DISCARD, games.get(message.getChatId())::doDiscard);
+                            put(HoldemEvent.SHOW_CARD, games.get(message.getChatId())::doShowCard);
+                            put(HoldemEvent.ASK_CHANGE, games.get(message.getChatId())::doAskChange);
+                            put(HoldemEvent.SELL_CHIPS, games.get(message.getChatId())::doSellChips);
                         }
                     };
                     eventMaps.put(message.getChatId(), eventMap);
@@ -155,7 +159,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
         if (handles(event)) {
             try {
                 if (!parsedEvent.getEvent().equals(HoldemEvent.NEW_PLAYER)
-                        && !games.get(message.getChatId()).playerExists(parsedEvent.getId())) {
+                        && games.get(message.getChatId()).playerNotExists(parsedEvent.getId())) {
                     Player player = new Player(parsedEvent.getId(), parsedEvent.getName(), parsedEvent.getLocale());
                     games.get(message.getChatId()).getTable().addPlayer(player);
                 }
@@ -164,7 +168,9 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                     throw new RuleViolationException("ROUND_NOT_STARTED");
                 eventMaps.get(message.getChatId()).get(parsedEvent.getEvent()).run();
             } catch (BadStateException e) {
-                throw new RuntimeException(e.getLocalizedMessage(parsedEvent.getLocale(), message.getFrom().getFirstName()), e);
+//                if (HoldemEvent.requireRound().contains(parsedEvent.getEvent())) {
+                    throw new RuntimeException(e.getLocalizedMessage(parsedEvent.getLocale(), message.getFrom().getFirstName()), e);
+//                }
             } catch (RuleViolationException e) {
                 throw new RuntimeException(e.getLocalizedMessage(parsedEvent.getLocale()), e);
             } catch (BadConditionException e) {
@@ -178,7 +184,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
         games.get(event.getChatId()).getBulkResult().forEach((id, text) -> {
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(id.toString());
-            sendMessage.setText(text);
+            sendMessage.setText("@" + games.get(event.getChatId()).getName() + ": " + text);
             messages.add(sendMessage);
         });
         return messages;

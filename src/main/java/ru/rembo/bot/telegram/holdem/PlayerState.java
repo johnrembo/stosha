@@ -29,7 +29,7 @@ public enum PlayerState {
     AWAY;
 
     public static EnumSet<PlayerState> playing() {
-        return EnumSet.of(IN_LINE, SMALL_BLIND, BIG_BLIND, DEALER, ALL_IN, FOLDED, RANKED);
+        return EnumSet.of(IN_LINE, SMALL_BLIND, BIG_BLIND, DEALER, ALL_IN, RANKED);
     }
 
     public static EnumSet<PlayerState> awayOrOutOfChips() {

@@ -11,7 +11,5 @@ public interface ParsedEvent <T extends Enum<T>> {
 
     Locale getLocale();
 
-    String getKey();
-
     String getOutputString(Object... args);
 }

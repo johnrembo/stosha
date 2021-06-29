@@ -63,6 +63,7 @@ public class Table extends ArrayList<Player> {
     public long readyPlayerCount() {
         return stream().filter(Player::canPlay).count();
     }
+
     public void addPlayer(Player player) {
         if (size() == MAX_PLAYERS)
             throw new RuleViolationException("MAX_PLAYERS", MAX_PLAYERS);
@@ -71,6 +72,14 @@ public class Table extends ArrayList<Player> {
         add(player);
         playersById.put(player.getId(), indexOf(player));
         System.out.println(player.getName() + " joins table");
+    }
+
+    public void removePlayer(Player player) {
+        if (!this.contains(player))
+            throw new RuleViolationException("PLAYER_NOT_EXISTS", player.getName());
+        remove(player);
+        playersById.remove(player.getId());
+        System.out.println(player.getName() + " leaves table");
     }
 
     public long challengerCount() {

@@ -63,14 +63,11 @@ public class Player extends Dealer<PlayerState> {
         actionMap.put(new PlayerTransition(PlayerState.SMALL_BLIND, PlayerState.BETTING), this::bet);
         actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.BIG_BLIND), this::acceptBigBlind);
         actionMap.put(new PlayerTransition(PlayerState.BIG_BLIND, PlayerState.BETTING), this::bet);
-
-//        actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.BETTING), this::bet); // debug
-//        actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.BIG_BLIND), this::bet); // debug
-
         actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.IN_TURN), this::inTurn);
         actionMap.put(new PlayerTransition(PlayerState.IN_TURN, PlayerState.BETTING), this::bet);
         actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.IN_LINE), this::accept);
         actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.ALL_IN), this::accept);
+        actionMap.put(new PlayerTransition(PlayerState.BETTING, PlayerState.BETTING), this::bet); // debug
         actionMap.put(new PlayerTransition(PlayerState.IN_TURN, PlayerState.FOLDED), this::fold);
         actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.SHOW_FLOP), this::acceptFlop);
         actionMap.put(new PlayerTransition(PlayerState.IN_LINE, PlayerState.SHOW_TURN), this::acceptTurn);
@@ -194,20 +191,28 @@ public class Player extends Dealer<PlayerState> {
         System.out.println(name + " buys chips for " + cash);
         Stack chips = new Stack(casino.change(cash));
         stack.deposit(chips);
-        globalMessage = chips.toString();
-        privateMessage = stack.toString();
+        globalMessage = chips + "(" + stack.getSum() + ")";
+        privateMessage = stack + "(" + stack.getSum() + ")";
         this.wallet = this.wallet - cash;
     }
 
     private void sellChips() {
         System.out.println(name + " sells chips for " + stack.getSum());
-        this.wallet = this.wallet +  casino.cashOut(stack.withdrawAll());
+        if (stack.getSum() == 0) {
+            globalMessage = "player.outOfChips" + stack.getSum();
+        } else {
+            globalMessage = "player.sellChips " + stack.getSum();
+            this.wallet = this.wallet + casino.cashOut(stack.withdrawAll());
+        }
     }
 
-    public void exchange(int sum, Casino casino) {
+    public void exchange(int sum) {
         Stack part = stack.withdraw(sum);
         System.out.println(name + " asks to change chips from bank: " + part);
+        Stack chips = new Stack(casino.change(part));
         stack.deposit(casino.change(part));
+        globalMessage = chips.toString();
+        privateMessage = stack.toString();
     }
 
     public boolean canPlay() {
@@ -321,11 +326,6 @@ public class Player extends Dealer<PlayerState> {
         System.out.println(getName() + " gets cards");
     }
 
-    private void leaveGame() {
-        globalMessage = GlobalProperties.getRandomOutput("player.leaveGame", locale);
-        System.out.println(getName() + " leaves game");
-    }
-
     private void joinGame() {
         System.out.println(getName() + " joins game");
     }
@@ -338,5 +338,5 @@ public class Player extends Dealer<PlayerState> {
         System.out.println(getName() + " comes back");
     }
 
-    // TODO pass chips to other players
+    // TODO trade chips with other players
 }

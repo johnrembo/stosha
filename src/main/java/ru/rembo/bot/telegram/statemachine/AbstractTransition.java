@@ -1,7 +1,5 @@
 package ru.rembo.bot.telegram.statemachine;
 
-import ru.rembo.bot.telegram.holdem.PlayerState;
-
 public abstract class AbstractTransition<T extends Enum<T>> implements Transition<T> {
 
     private final T before;

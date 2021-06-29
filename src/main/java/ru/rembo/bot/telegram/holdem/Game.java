@@ -7,6 +7,8 @@ import java.util.Collection;
 import java.util.HashMap;
 
 public class Game {
+    // TODO Save players, games, stats
+    private final String name;
     private final Deck deck = new Deck();
     private final Table table = new Table();
     private final Casino casino = new Casino(5);
@@ -16,10 +18,14 @@ public class Game {
     private final HashMap<Integer, String> bulkResult = new HashMap<>();
     private HoldemParsedEvent parsedEvent;
 
-    public Game(long ID, String name) {
+    public Game(String name) {
+        this.name = name;
         this.globalResult = GlobalProperties.getRandomOutput("game.Game", GlobalProperties.defaultLocale);
     }
 
+    public String getName() {
+        return name;
+    }
     public Table getTable() {
         return table;
     }
@@ -53,7 +59,7 @@ public class Game {
             table.getNextChallengingFrom(player).actTo(PlayerState.OPTIONAL_SHOWDOWN);
             round.actTo(RoundState.OPTIONAL_SHOWDOWN);
             builder.append("\n").append(GlobalProperties.getRandomOutput("game.winner", parsedEvent.getLocale()));
-            builder.append("\n").append(player.getAndClearGlobalMessage(player.getName()));
+            builder.append("\n").append(table.getNextChallengingFrom(player).getAndClearGlobalMessage(table.getNextChallengingFrom(player).getName()));
         } else if ((table.challengerCount() - table.countByState(PlayerState.ALL_IN) == 0)
                     || lastState.equals(RoundState.RIVER)) {
             System.out.println("Players should now showdown");
@@ -94,19 +100,42 @@ public class Game {
         String chopMessage = GlobalProperties.getRandomOutput("game.chopThePot"
                 , GlobalProperties.defaultLocale);
         round.getChoppedPot().forEach((player, chips) -> builder.append("\n")
-                .append(String.format(chopMessage, chips.toString(), player.getName(), player.getStack().toString())));
+                .append(String.format(chopMessage, chips.toString() + "(" + chips.getSum() + ")"
+                        , player.getName(), player.getStack().toString() + "(" + player.getStack().getSum() + ")")));
         table.stream().filter(Player::canPlay).forEach(player ->
-                bulkResult.put(player.getId(), player.getStack().toString()));
+                bulkResult.put(player.getId(), player.getStack().toString() + "(" + player.getStack().getSum() + ")"));
 
         table.getDealer().actTo(PlayerState.RETURN_DECK);
         table.getDealer().actTo(PlayerState.SPECTATOR);
-        table.stream().filter(Player::isEmpty).forEach(player -> player.actTo(PlayerState.OUT_OF_CHIPS));
-        passDeck(table.getNextPlayerFrom(table.getDealer(), Player::isSpectating), table.getDealer().getPlayedDeck());
+        table.stream().filter(Player::isEmpty).forEach(player -> {
+            player.actTo(PlayerState.OUT_OF_CHIPS);
+            builder.append("\n").append(player.getAndClearGlobalMessage(player.getName()));
+        });
+        table.stream().filter(Player::isFolded).forEach(player -> player.actTo(PlayerState.SPECTATOR));
+        Player dealer = table.getNextPlayerFrom(table.getDealer(), Player::isSpectating);
+        dealer.actTo(PlayerState.DEALER, table.getDealer().getPlayedDeck());
+        table.setDealer(dealer);
+        builder.append("\n").append(dealer.getAndClearGlobalMessage(dealer.getName()));
     }
 
-    public void doShowCard(Player dealer) {
+    public void doShowHelp() {
+        bulkResult.put(parsedEvent.getId(), parsedEvent.getOutputString());
+    }
+
+    public void doAskChange() {
+        Player player = table.getById(parsedEvent.getId());
+        player.exchange(Integer.parseInt(parsedEvent.getArgs().get("sum")));
+        globalResult = parsedEvent.getOutputString(player.getName()
+                , Integer.parseInt(parsedEvent.getArgs().get("sum"))
+                , player.getAndClearGlobalMessage());
+    }
+
+    public void doShowCard() {
+        Player dealer = table.getById(parsedEvent.getId());
+        PlayerState lastPlayerState = dealer.getState();
         dealer.actTo(PlayerState.SHOW_FROM_TOP);
-        dealer.actTo(PlayerState.SHUFFLED);
+        globalResult = parsedEvent.getOutputString(dealer.getName(), dealer.getShowCard());
+        dealer.actTo(lastPlayerState);
     }
 
     public void doRank() {
@@ -192,17 +221,23 @@ public class Game {
         RoundState lastState = round.getState();
         Player player = table.getById(parsedEvent.getId());
         StringBuilder builder = new StringBuilder();
-        player.actTo(PlayerState.FOLDED);
-        builder.append("\n").append(player.getAndClearGlobalMessage(player.getName()));
-        collectCards(player.getDiscarded());
-        if (player.equals(round.getLead())
-                || (table.getNextPlayingFrom(player).equals(round.getLead()) && !round.getLead().canAct())
-                || (table.activePlayerCount() == 1)) {
-            nextStage(lastState, player, builder);
-        } else {
-            Player nextPlayer = table.getNextActivePlayerFrom(player);
-            nextPlayer.actTo(PlayerState.IN_TURN);
-            builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
+        PlayerState lastPlayerState = player.getState();
+        try {
+            player.actTo(PlayerState.FOLDED);
+            builder.append("\n").append(player.getAndClearGlobalMessage(player.getName()));
+            collectCards(player.getDiscarded());
+            if (player.equals(round.getLead())
+                    || (table.getNextPlayingFrom(player).equals(round.getLead()) && !round.getLead().canAct())
+                    || (table.activePlayerCount() == 1)) {
+                nextStage(lastState, player, builder);
+            } else {
+                Player nextPlayer = table.getNextActivePlayerFrom(player);
+                nextPlayer.actTo(PlayerState.IN_TURN);
+                builder.append("\n").append(nextPlayer.getAndClearGlobalMessage(nextPlayer.getName()));
+            }
+        } catch (RuleViolationException e) {
+            player.actTo(lastPlayerState);
+            throw e;
         }
     }
 
@@ -255,15 +290,13 @@ public class Game {
             }
             globalResult = builder.toString();
         } catch (RuleViolationException e) {
-            //round.actTo(lastState, player);
             player.actTo(lastPlayerState);
-//            player.actTo(PlayerState.IN_TURN);
             throw e;
         }
     }
 
     public void doDeal() {
-        // debug if (table.readyPlayerCount() <= 1) throw new BadStateException("NOT_ENOUGH_PLAYERS");
+        if (table.readyPlayerCount() <= 1) throw new BadStateException("NOT_ENOUGH_PLAYERS");
         Player dealer = table.getById(parsedEvent.getId());
         dealer.actTo(PlayerState.DEALING, table);
         table.stream().filter(Player::canPlay).forEach(player -> {
@@ -281,12 +314,6 @@ public class Game {
     public void doShuffle() {
         table.getById(parsedEvent.getId()).actTo(PlayerState.SHUFFLED);
         globalResult = parsedEvent.getOutputString(parsedEvent.getName());
-    }
-
-    public void passDeck(Player dealer, Deck deck) {
-        dealer.actTo(PlayerState.DEALER, deck);
-        table.setDealer(dealer);
-        globalResult = dealer.getAndClearGlobalMessage(dealer.getName());
     }
 
     public void doGiveDeck() {
@@ -307,7 +334,7 @@ public class Game {
     }
 
     public void doCreate() {
-        if (!playerExists(parsedEvent.getId())) {
+        if (playerNotExists(parsedEvent.getId())) {
             Player player = new Player(parsedEvent.getId(), parsedEvent.getName(), parsedEvent.getLocale());
             table.addPlayer(player);
             globalResult = parsedEvent.getOutputString(parsedEvent.getName());
@@ -320,6 +347,13 @@ public class Game {
     public void doJoin() {
         table.getById(parsedEvent.getId()).actTo(PlayerState.SPECTATOR);
         globalResult = parsedEvent.getOutputString(parsedEvent.getName());
+    }
+
+    public void doSellChips() {
+        Player player = table.getById(parsedEvent.getId());
+        player.cashOut(casino);
+        table.removePlayer(player);
+        globalResult = player.getAndClearGlobalMessage(player.getName());
     }
 
     public void doByChips() {
@@ -335,8 +369,8 @@ public class Game {
         return globalResult;
     }
 
-    public boolean playerExists(int id) {
-        return table.containsPlayer(id);
+    public boolean playerNotExists(int id) {
+        return !table.containsPlayer(id);
     }
 
     public void setParsedEvent(HoldemParsedEvent parsedEvent) {
@@ -358,4 +392,5 @@ public class Game {
     public boolean roundNotStarted() {
         return round == null;
     }
+
 }

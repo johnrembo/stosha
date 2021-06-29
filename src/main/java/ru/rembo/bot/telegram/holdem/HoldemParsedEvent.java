@@ -10,13 +10,11 @@ public class HoldemParsedEvent extends AbstractParsedEvent<HoldemEvent, Message>
 
     private final int id;
     private final String name;
-    private final Long gameId;
 
     public HoldemParsedEvent(Message message) {
         super(message);
         id = message.getFrom().getId();
-        name = message.getFrom().getFirstName();
-        gameId = message.getChatId();
+        name = (message.getFrom().getUserName() == null) ? message.getFrom().getFirstName() : message.getFrom().getUserName();
         GlobalProperties.InputPatternMatch match = GlobalProperties.matchInput(message);
         if ((match != null) && match.key.contains("HoldemEvent.")) {
             key = match.key;
@@ -31,10 +29,6 @@ public class HoldemParsedEvent extends AbstractParsedEvent<HoldemEvent, Message>
 
     public int getId() {
         return id;
-    }
-
-    public Long getGameId() {
-        return gameId;
     }
 
     public String getName() {

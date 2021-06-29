@@ -1,7 +1,5 @@
 package ru.rembo.bot.telegram.holdem;
 
-import ru.rembo.bot.telegram.statemachine.BadStateException;
-
 import java.util.*;
 
 public class Stack extends ArrayList<Chip> {
