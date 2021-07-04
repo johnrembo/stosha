@@ -339,9 +339,6 @@ public class Round  extends AbstractActor<RoundState> {
         raiseAmount = 0;
         callAmount = 0;
         lead = currentPlayer;
-        if (Action.continuers().contains(lastAction)) {
-            lead = currentPlayer;
-        }
     }
 
     private void showSharedCards() {

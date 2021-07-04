@@ -56,10 +56,11 @@ public class Game {
     public void nextStage(RoundState lastState, Player player, StringBuilder builder) {
         if (table.challengerCount() == 1) {
             System.out.println("We have a winner");
-            table.getNextChallengingFrom(player).actTo(PlayerState.OPTIONAL_SHOWDOWN);
+            Player onlyPlayer = table.getNextChallengingFrom(player);
+            onlyPlayer.actTo(PlayerState.OPTIONAL_SHOWDOWN);
             round.actTo(RoundState.OPTIONAL_SHOWDOWN);
             builder.append("\n").append(GlobalProperties.getRandomOutput("game.winner", parsedEvent.getLocale()));
-            builder.append("\n").append(table.getNextChallengingFrom(player).getAndClearGlobalMessage(table.getNextChallengingFrom(player).getName()));
+            builder.append("\n").append(onlyPlayer.getAndClearGlobalMessage(onlyPlayer.getName()));
         } else if ((table.challengerCount() - table.countByState(PlayerState.ALL_IN) == 0)
                     || lastState.equals(RoundState.RIVER)) {
             System.out.println("Players should now showdown");
@@ -68,17 +69,17 @@ public class Game {
             round.actTo(RoundState.SHOWDOWN);
             builder.append("\n").append(round.getLead().getAndClearGlobalMessage(round.getLead().getName()));
         } else if (lastState.equals(RoundState.PREFLOP)) {
-            round.actTo(RoundState.WAIT_FLOP, table.getDealer());
+            round.actTo(RoundState.WAIT_FLOP, table.getNextActivePlayerFrom(table.getDealer()));
             System.out.println(table.getDealer().getName() + " should now open Flop");
             table.getDealer().actTo(PlayerState.SHOW_FLOP);
             builder.append("\n").append(table.getDealer().getAndClearGlobalMessage(table.getDealer().getName()));
         } else if (lastState.equals(RoundState.FLOP)) {
-            round.actTo(RoundState.WAIT_TURN, table.getDealer());
+            round.actTo(RoundState.WAIT_TURN, table.getNextActivePlayerFrom(table.getDealer()));
             System.out.println(table.getDealer().getName() + " should now open Turn");
             table.getDealer().actTo(PlayerState.SHOW_TURN);
             builder.append("\n").append(table.getDealer().getAndClearGlobalMessage(table.getDealer().getName()));
         } else if (lastState.equals(RoundState.TURN)) {
-            round.actTo(RoundState.WAIT_RIVER, table.getDealer());
+            round.actTo(RoundState.WAIT_RIVER, table.getNextActivePlayerFrom(table.getDealer()));
             System.out.println(table.getDealer().getName() + " should now open River");
             table.getDealer().actTo(PlayerState.SHOW_RIVER);
             builder.append("\n").append(table.getDealer().getAndClearGlobalMessage(table.getDealer().getName()));
@@ -224,10 +225,9 @@ public class Game {
         PlayerState lastPlayerState = player.getState();
         try {
             player.actTo(PlayerState.FOLDED);
-            builder.append("\n").append(player.getAndClearGlobalMessage(player.getName()));
+            builder.append("\n").append(parsedEvent.getOutputString(player.getName()));
             collectCards(player.getDiscarded());
-            if (player.equals(round.getLead())
-                    || (table.getNextPlayingFrom(player).equals(round.getLead()) && !round.getLead().canAct())
+            if ((table.getNextPlayingFrom(player).equals(round.getLead()) && !round.getLead().canAct())
                     || (table.activePlayerCount() == 1)) {
                 nextStage(lastState, player, builder);
             } else {
@@ -239,6 +239,14 @@ public class Game {
             player.actTo(lastPlayerState);
             throw e;
         }
+    }
+
+    public void doBigBlind() {
+        bet(table.getById(parsedEvent.getId()), getBigBlindAmount());
+    }
+
+    public void doSmallBlind() {
+        bet(table.getById(parsedEvent.getId()), getSmallBlindAmount());
     }
 
     public void doCall() {

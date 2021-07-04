@@ -12,6 +12,8 @@ public enum HoldemEvent {
     GIVE_DECK,
     SHUFFLE_DECK,
     DEAL,
+    SMALL_BLIND,
+    BIG_BLIND,
     BET,
     CHECK,
     CALL,

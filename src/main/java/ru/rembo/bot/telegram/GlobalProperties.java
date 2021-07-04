@@ -5,6 +5,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -20,8 +21,6 @@ public class GlobalProperties {
     private static final Logger consoleLog = Logger.getLogger(Properties.class.getName());
     private static boolean initialized = false;
     public static final Locale defaultLocale = Locale.getDefault();
-    public static final Locale enUSLocale = new Locale("en", "US");
-    public static final Locale ruRULocale = new Locale("ru", "RU");
     public static final HashSet<Locale> supportedLocales = new HashSet<>();
     public static final HashMap<Locale, ResourceBundle> inputPatterns = new HashMap<>();
     public static final HashMap<Locale, ResourceBundle> outputMessages = new HashMap<>();
@@ -42,8 +41,9 @@ public class GlobalProperties {
     }
 
     static {
-        supportedLocales.add(enUSLocale);
-        supportedLocales.add(ruRULocale);
+        supportedLocales.add(Locale.ROOT);
+        supportedLocales.add(new Locale("en", "US"));
+        supportedLocales.add(new Locale("ru", "RU"));
     }
 
     private static Properties getProperties() {

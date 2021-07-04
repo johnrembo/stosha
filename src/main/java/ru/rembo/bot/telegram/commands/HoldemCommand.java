@@ -8,10 +8,12 @@ import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.rembo.bot.telegram.GlobalLogger;
+import ru.rembo.bot.telegram.GlobalProperties;
 import ru.rembo.bot.telegram.holdem.*;
 import ru.rembo.bot.telegram.statemachine.AbstractEventMap;
 import ru.rembo.bot.telegram.statemachine.BadStateException;
 import ru.rembo.bot.telegram.statemachine.EventHandler;
+import ru.rembo.bot.telegram.updatehandlers.CacheCommandBot;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,6 +32,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
     private final HashMap<Long, AbstractEventMap<HoldemEvent, HoldemCommand>> eventMaps = new HashMap<>();
     private Message message;
     private HoldemParsedEvent parsedEvent;
+    private CacheCommandBot sender;
 
     public HoldemCommand() {
         super("holdem", "control Texas Hold'em croupier mode v 1.0 alfa");
@@ -47,6 +50,7 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                 ", " + String.join(" ", strings));
         GlobalLogger.finer(message.toString());
         this.message = message;
+        this.sender = (CacheCommandBot) absSender;
         String text = String.join(" ", strings);
         String answerText = null;
         String answerChatId = message.getChatId().toString();
@@ -77,6 +81,8 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
                             put(HoldemEvent.GIVE_DECK, games.get(message.getChatId())::doGiveDeck);
                             put(HoldemEvent.SHUFFLE_DECK, games.get(message.getChatId())::doShuffle);
                             put(HoldemEvent.DEAL, games.get(message.getChatId())::doDeal);
+                            put(HoldemEvent.SMALL_BLIND, games.get(message.getChatId())::doSmallBlind);
+                            put(HoldemEvent.BIG_BLIND, games.get(message.getChatId())::doBigBlind);
                             put(HoldemEvent.BET, games.get(message.getChatId())::doBet);
                             put(HoldemEvent.CHECK, games.get(message.getChatId())::doCheck);
                             put(HoldemEvent.CALL, games.get(message.getChatId())::doCall);
@@ -183,8 +189,14 @@ public class HoldemCommand extends BotCommand implements IBotCommand, IManComman
         HashSet<SendMessage> messages = new HashSet<>();
         games.get(event.getChatId()).getBulkResult().forEach((id, text) -> {
             SendMessage sendMessage = new SendMessage();
-            sendMessage.setChatId(id.toString());
-            sendMessage.setText("@" + games.get(event.getChatId()).getName() + ": " + text);
+            if (sender.chatExists(id.longValue())) {
+                sendMessage.setChatId(id.toString());
+                sendMessage.setText("@" + games.get(event.getChatId()).getName() + ": " + text);
+            } else {
+                sendMessage.setChatId(event.getChatId().toString());
+                sendMessage.setText("@" +  games.get(event.getChatId()).getTable().getById(id).getName()
+                        + GlobalProperties.getRandomException("NO_PRIVATE_CHAT", GlobalProperties.defaultLocale) );
+            }
             messages.add(sendMessage);
         });
         return messages;

@@ -20,8 +20,8 @@ public class GlobalLogger {
 
     private static Logger getLogger() {
         if (!initialized) {
-/*            Handler consoleLog = new ConsoleHandler();
-            logger.addHandler(consoleLog);*/
+            logger.addHandler(new ConsoleHandler());
+            logger.setUseParentHandlers(false);
             logger.setLevel(Level.parse(GlobalProperties.get("logLevelConsole")));
             logger.info("Loading global log");
             SimpleDateFormat dateYYYYMMDD = new SimpleDateFormat(GlobalProperties.get("logFileNameFormat"));
@@ -31,7 +31,18 @@ public class GlobalLogger {
             logger.info("Start logging to '" + logFile + "'");
             try {
                 Handler fileHandler = new FileHandler(logFile, true);
-                fileHandler.setFormatter(new SimpleFormatter() {
+                fileHandler.setLevel(Level.parse(GlobalProperties.get("logLevelFile")));
+                logger.addHandler(fileHandler);
+                logger.info("Log started with log level " + fileHandler.getLevel());
+            } catch (IOException e) {
+                logger.warning("Cannot access log file '" + logFile + "'");
+                logger.info("Logging to console");
+            } finally {
+                initialized = true;
+            }
+            Handler[] handlers = logger.getHandlers();
+            for (Handler handler : handlers) {
+                handler.setFormatter(new SimpleFormatter() {
                     private static final String format = "[%1$tF %1$tT] [%2$-7s] %3$s %n";
 
                     @Override
@@ -43,14 +54,6 @@ public class GlobalLogger {
                         );
                     }
                 });
-                fileHandler.setLevel(Level.parse(GlobalProperties.get("logLevelFile")));
-                logger.addHandler(fileHandler);
-                logger.info("Log started with log level " + fileHandler.getLevel());
-            } catch (IOException e) {
-                logger.warning("Cannot access log file '" + logFile + "'");
-                logger.info("Logging to console");
-            } finally {
-                initialized = true;
             }
         }
         return logger;
@@ -66,8 +69,8 @@ public class GlobalLogger {
 
     }
 
-    public static void severe(String msg) {
-        log(Level.SEVERE, msg);
+    public static void severe(String msg, Exception cause) {
+        log(Level.SEVERE, msg, cause);
     }
 
     public static void warning(String msg) {
@@ -86,11 +89,11 @@ public class GlobalLogger {
         log(Level.FINE, msg);
     }
 
-    public static void fine(String msg, Exception e) {
-        log(Level.FINE, msg, e);
-    }
-
     public static void finer(String msg) {
         log(Level.FINER, msg);
+    }
+
+    public static void finest(String msg) {
+        log(Level.FINEST, msg);
     }
 }

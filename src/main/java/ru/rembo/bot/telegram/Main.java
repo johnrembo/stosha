@@ -30,13 +30,14 @@ public class Main {
                 botsApi.registerBot(telegramCommands);
 //                GlobalLogger.info("Register " + jsonRunner.getBotUsername() +  " PHPBot");
 //                botsApi.registerBot(jsonRunner);
+                GlobalLogger.info(telegramCommands.getBotUsername() +  " command bot registered successfully");
             } catch (TelegramApiException e) {
                 jsonRunner.process.destroy();
-                GlobalLogger.severe("Failed bot registration");
+                GlobalLogger.severe("Failed bot registration", e);
                 throw new RuntimeException("SEVERE: Bots not registered", e);
             }
         } catch (TelegramApiException e) {
-            GlobalLogger.severe("Failed bot init");
+            GlobalLogger.severe("Failed bot init", e);
             throw new RuntimeException("SEVERE: Bots not initialized", e);
         }
     }

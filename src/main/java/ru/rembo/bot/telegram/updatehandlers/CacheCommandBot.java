@@ -76,7 +76,6 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
                     if ((now - message.getDate()) < depth * 60 * 60 * 24) {
                         putMessage(message);
                         count++;
-                        GlobalLogger.finer("Loaded message id: " + file.getName());
                     }
                 } catch (Exception e) {
                     GlobalLogger.warning("Failed loading message from " + file.getAbsolutePath());
@@ -155,7 +154,7 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
         }
         chatCache.get(message.getChatId()).put(message.getMessageId(), message);
         saveMessage(message);
-        GlobalLogger.fine("Cached message id: " + message.getMessageId() + " in chat id: " + message.getChatId());
+        GlobalLogger.finest("Cached message id: " + message.getMessageId() + " in chat id: " + message.getChatId());
         GlobalLogger.finer(message.toString());
     }
 

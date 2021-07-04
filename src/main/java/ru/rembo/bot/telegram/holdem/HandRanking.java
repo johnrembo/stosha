@@ -159,7 +159,11 @@ public class HandRanking {
                     }
                 }
                 if (smallPairCombo != null) {
-                    combo = new Combo(Combination.TWO_PAIRS, pairCombo.highCard, pairCombo.hand);
+                    combo = new Combo(Combination.TWO_PAIRS,
+                            (pairCombo.highCard.compareTo(smallPairCombo.highCard.rank) > 0
+                                    ? pairCombo.highCard
+                                    : smallPairCombo.highCard)
+                            , pairCombo.hand);
                     combo.add(smallPairCombo);
                 }
             }

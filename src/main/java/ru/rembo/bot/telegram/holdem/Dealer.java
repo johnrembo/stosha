@@ -93,6 +93,7 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
 
     protected void showFlop() {
         System.out.println(name + " showing Flop");
+        flop.clear();
         Collection<Card> burn = new HashSet<>();
         deck.actTo(DeckState.PULL_CARD);
         burn.add(deck.getCard());
@@ -105,6 +106,7 @@ public abstract class Dealer<T extends Enum<T>> extends AbstractActor<T> {
         flop.add(deck.getCard());
         deck.actTo(DeckState.PLAYED);
     }
+
 
     protected void deal() {
         System.out.println(getName() + " deals cards");

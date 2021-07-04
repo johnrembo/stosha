@@ -318,7 +318,6 @@ public class Player extends Dealer<PlayerState> {
         discarded.clear();
         discarded.addAll(hand);
         hand.clear();
-        globalMessage = "player.fold";
     }
 
     private void takeHand() {

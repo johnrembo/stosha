@@ -55,7 +55,7 @@ public class CommandsHandler extends CacheCommandBot {
             try {
                 absSender.execute(commandUnknownMessage);
             } catch (TelegramApiException e) {
-                e.printStackTrace();
+                GlobalLogger.warning("Send unknown command response failed", e);
             }
             helpCommand.execute(absSender, message.getFrom(), message.getChat(), new String[] {});
         });
