@@ -28,9 +28,9 @@ public class GlobalLogger {
             String logFile = GlobalProperties.get("logDir") + File.separator +
                     GlobalProperties.get("logFileNamePrefix") +
                     dateYYYYMMDD.format(new Date()) + GlobalProperties.get("logFileNameSuffix");
-            logger.info("Start logging to '" + logFile + "'");
+            logger.info("Start logging to '" + System.getProperty("user.home") + System.getProperty("file.separator") + logFile + "'");
             try {
-                Handler fileHandler = new FileHandler(logFile, true);
+                Handler fileHandler = new FileHandler(System.getProperty("user.home") + System.getProperty("file.separator")+ logFile, true);
                 fileHandler.setLevel(Level.parse(GlobalProperties.get("logLevelFile")));
                 logger.addHandler(fileHandler);
                 logger.info("Log started with log level " + fileHandler.getLevel());

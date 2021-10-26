@@ -64,7 +64,7 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
         }
     }
 
-    private int loadMessages (File[] files, long depth) throws IOException {
+    private int loadMessages (File[] files, long depth) {
         int count = 0;
         for (File file : files) {
             if (file.isFile()) {
@@ -93,20 +93,16 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
      * @param depth days from current system time inclusive
      */
     public void loadCache (long chatId, long depth) {
-        GlobalLogger.info("Loading cache from: " + GlobalProperties.get("cacheDir"));
-        File dir = new File(GlobalProperties.get("cacheDir"));
+        GlobalLogger.info("Loading cache from: " + System.getProperty("user.home") + System.getProperty("file.separator") + GlobalProperties.get("cacheDir"));
+        File dir = new File(System.getProperty("user.home") + System.getProperty("file.separator") + GlobalProperties.get("cacheDir"));
         File[] files = dir.listFiles();
         assert files != null;
         for (File file : files) {
             if (file.isDirectory() && ((chatId == 0) || file.getName().equals(String.valueOf(chatId)))) {
                 GlobalLogger.fine("Loading chat id: " + file.getName());
                 int count;
-                try {
-                    count = loadMessages(Objects.requireNonNull(file.listFiles()), depth);
-                    GlobalLogger.fine("Loaded " + count + " message(s)");
-                } catch (IOException e) {
-                    GlobalLogger.warning("Failed loading messages from " + file.getAbsolutePath());
-                }
+                count = loadMessages(Objects.requireNonNull(file.listFiles()), depth);
+                GlobalLogger.fine("Loaded " + count + " message(s)");
             }
         }
     }
@@ -128,7 +124,7 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
     }
 
     private void saveMessage(Message message) {
-        String fileName = GlobalProperties.get("cacheDir") +
+        String fileName =  System.getProperty("user.home") + System.getProperty("file.separator") + GlobalProperties.get("cacheDir") +
                 File.separator +message.getChatId() + File.separator + message.getMessageId();
         File file = new File(fileName);
         if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
@@ -211,7 +207,7 @@ public abstract class CacheCommandBot extends TelegramLongPollingBot implements 
                 }
             }
         } catch (Exception e) {
-            GlobalLogger.warning(e.getLocalizedMessage(), e);
+            GlobalLogger.warning(e.getMessage(), e);
         }
     }
 

@@ -114,11 +114,13 @@ public class PostCommand extends BotCommand implements IBotCommand, IManCommand 
                     String inputLine;
                     if ((encoding == null) || "identity".equals(encoding)) {
                         String contentType = conn.getContentType();
-                        String[] values = contentType.split(";"); // values.length should be 2
-                        for (String value : values) {
-                            value = value.trim();
-                            if (value.toLowerCase().startsWith("charset=")) {
-                                encoding = value.substring("charset=".length());
+                        if (contentType != null) {
+                            String[] values = contentType.split(";"); // values.length should be 2
+                            for (String value : values) {
+                                value = value.trim();
+                                if (value.toLowerCase().startsWith("charset=")) {
+                                    encoding = value.substring("charset=".length());
+                                }
                             }
                         }
                         if (encoding == null || "".equals(encoding) || "identity".equals(encoding)) {
@@ -166,10 +168,12 @@ public class PostCommand extends BotCommand implements IBotCommand, IManCommand 
                             title = url.getHost() + url.getPath();
                         }
                     }
-                    title = title.replace("&laquo;", "«").replace("&raquo;","»");
+                    title = title.replace("&laquo;", "«")
+                            .replace("&raquo;","»")
+                            .replace("&nbsp;"," ");
                     escaped.append("<a href=\"").append(url).append("\">").append(title).append("</a>\n\n");
                 } catch (IOException e) {
-                    GlobalLogger.warning(e.getLocalizedMessage(), e);
+                    GlobalLogger.warning(e.getMessage(), e);
                 }
             }
             text = escaped.toString();
