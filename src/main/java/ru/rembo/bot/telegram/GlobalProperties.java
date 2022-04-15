@@ -64,8 +64,8 @@ public class GlobalProperties {
 
             consoleLog.info("Loading locales");
             for (Locale locale : supportedLocales) {
-                inputPatterns.put(locale, ResourceBundle.getBundle("InputPatternsBundle", locale));
-                outputMessages.put(locale, ResourceBundle.getBundle("OutputMessagesBundle", locale));
+                inputPatterns.put(locale, ResourceBundle.getBundle("InputPatterns", locale));
+                outputMessages.put(locale, ResourceBundle.getBundle("OutputMessages", locale));
                 exceptionMessages.put(locale, ResourceBundle.getBundle("ExceptionMessages", locale));
                 consoleLog.info(locale.getDisplayName() + " loaded");
             }

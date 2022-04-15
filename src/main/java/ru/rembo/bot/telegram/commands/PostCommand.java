@@ -110,6 +110,7 @@ public class PostCommand extends BotCommand implements IBotCommand, IManCommand 
                     conn.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
                     conn.setRequestProperty("User-Agent","Mozilla/5.0 ( compatible ) ");
                     conn.setRequestProperty("Accept","*/*");
+                    conn.setConnectTimeout(5000);
                     String encoding = conn.getContentEncoding();
                     String inputLine;
                     if ((encoding == null) || "identity".equals(encoding)) {
@@ -173,7 +174,7 @@ public class PostCommand extends BotCommand implements IBotCommand, IManCommand 
                             .replace("&nbsp;"," ");
                     escaped.append("<a href=\"").append(url).append("\">").append(title).append("</a>\n\n");
                 } catch (IOException e) {
-                    GlobalLogger.warning(e.getMessage(), e);
+                    GlobalLogger.warning(e.getMessage() + " at " + urlMatcher.group(0), e);
                 }
             }
             text = escaped.toString();
